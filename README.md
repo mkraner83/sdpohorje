@@ -1,44 +1,85 @@
 # SD Pohorje Accounts Plugin
 
-WordPress plugin MVP for role-based registrations and branded authentication forms.
+WordPress plugin for ŠD Pohorje account flows, user dashboard, and SD Portal admin management.
 
-## Features
+## Current Version
 
-- Slovenian frontend forms for:
-  - Athlete registration
-  - Parent registration
-  - Login
-  - Forgot password
-  - Password reset
-- English admin pages for:
-  - Pending registration approvals
-  - Parent-athlete linking (admin-only)
-- Staff role intended for backend-only creation
-- Pending approval flow blocks login until account is approved
+- Plugin version: 0.1.29
+- Plugin slug: sd-pohorje-accounts
+
+## Frontend Shortcodes
+
+Use these shortcodes on dedicated WordPress pages.
+
+- [sdp_register_athlete]
+- [sdp_register_parent]
+- [sdp_login]
+- [sdp_forgot_password]
+- [sdp_reset_password]
+- [sdp_dashboard]
+
+## Frontend Features (Slovenian UI)
+
+- Athlete and Parent registration forms.
+- Username is auto-suggested from first/last name (select list, not manual free-text input).
+- Optional phone fields for both registration forms.
+- Registration success flow:
+  - Success notice stays on same page.
+  - Registration form is replaced with login form directly below notice.
+- Login redirects to portal dashboard page.
+- Dashboard includes top navigation tabs:
+  - Pregled
+  - Uredi profil
+  - Moji oglasi
+  - Dodaj oglas
+- Dashboard overview includes a friendly intro plus guidance for profile editing and used-item selling.
+- Profile editing for logged-in users (username is read-only).
+- Login page shows quick registration buttons for Parent and Athlete when the user is not logged in.
+
+## Email Notifications
+
+- User registration confirmation email (HTML + plain text fallback) is sent in Slovenian.
+- Marketplace inquiry emails use the same branded HTML wrapper and plain-text fallback.
+- Email branding and copy use ŠD Pohorje.
+- Admin new-registration notifications are sent to SD Portal settings email.
+
+## Admin Features (English UI)
+
+Main menu:
+
+- SD Portal
+
+Submenus:
+
+- Users
+  - Opens native WordPress users table with full built-in functionality.
+  - Filtered to Parent and Athlete roles only.
+  - Parent/Athlete roles are hidden from the default WordPress users view.
+- Settings
+  - Admin Email option for notification destination.
+  - Shortcode reference for current frontend pages.
 
 ## Install
 
-1. Copy the `sd-pohorje-accounts` folder into `wp-content/plugins/`.
-2. Activate **SD Pohorje Accounts** in WordPress admin.
-3. Create pages and add shortcodes:
-   - `[sdp_register_athlete]`
-   - `[sdp_register_parent]`
-   - `[sdp_login]`
-   - `[sdp_forgot_password]`
-   - `[sdp_reset_password]`
-4. Manage approvals and links in admin menu: **SDP Accounts**.
+1. Copy sd-pohorje-accounts into wp-content/plugins/.
+2. Activate SD Pohorje Accounts in WordPress admin.
+3. Create pages and place shortcodes listed above.
+4. Ensure portal page exists at /uporabniski-portal/ and contains [sdp_dashboard].
 
 ## Build ZIP (for upload)
 
-1. Run `chmod +x build-plugin-zip.sh` (only once).
-2. Build the plugin package with `./build-plugin-zip.sh`.
-3. Upload `sd-pohorje-accounts.zip` in WordPress via Plugins -> Add New -> Upload Plugin.
-4. Each build automatically bumps the plugin patch version (for example `0.1.0` -> `0.1.1`).
+1. Run chmod +x build-plugin-zip.sh (once).
+2. Build package with ./build-plugin-zip.sh.
+3. Upload sd-pohorje-accounts.zip via Plugins -> Add New -> Upload Plugin.
+4. Build script auto-bumps patch version each run.
 
-The ZIP always contains the same plugin folder slug (`sd-pohorje-accounts`), so updates target the same installed plugin. WordPress will treat it as the same plugin during upload.
+## Restore Guidance
+
+- Latest restore-point documentation is in docs/RESTORE-POINT-2026-07-01-v0.1.29.md.
+- Versioned restore ZIP snapshots are stored in docs/restore-points/.
 
 ## Notes
 
-- Parent-athlete linking is admin-only by design.
-- Frontend text is Slovenian.
-- Backend labels and workflows are English.
+- Frontend is Slovenian.
+- Admin is English.
+- Approval blocking is currently bypassed for pending users (temporary project decision).
