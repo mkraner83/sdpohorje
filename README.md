@@ -4,7 +4,7 @@ WordPress plugin for ŠD Pohorje account flows, user dashboard, and SD Portal ad
 
 ## Current Version
 
-- Plugin version: 0.1.29
+- Plugin version: 0.1.33
 - Plugin slug: sd-pohorje-accounts
 
 ## Frontend Shortcodes
@@ -17,6 +17,8 @@ Use these shortcodes on dedicated WordPress pages.
 - [sdp_forgot_password]
 - [sdp_reset_password]
 - [sdp_dashboard]
+- [sdp_club_shop]
+- [sdp_club_orders]
 
 ## Frontend Features (Slovenian UI)
 
@@ -30,9 +32,14 @@ Use these shortcodes on dedicated WordPress pages.
 - Dashboard includes top navigation tabs:
   - Pregled
   - Uredi profil
+  - Klubska oprema
+  - Moja naročila
   - Moji oglasi
   - Dodaj oglas
 - Dashboard overview includes a friendly intro plus guidance for profile editing and used-item selling.
+- Club shop lets logged-in Parents/Athletes browse official club products, add multiple items to cart, and submit one no-payment order.
+- Club-shop orders support quantity, optional size selection, a required child/athlete recipient field, and customer notes.
+- Logged-in users can review their submitted club-shop orders and current order status in the portal.
 - Profile editing for logged-in users (username is read-only).
 - Login page shows quick registration buttons for Parent and Athlete when the user is not logged in.
 
@@ -40,6 +47,8 @@ Use these shortcodes on dedicated WordPress pages.
 
 - User registration confirmation email (HTML + plain text fallback) is sent in Slovenian.
 - Marketplace inquiry emails use the same branded HTML wrapper and plain-text fallback.
+- Club-shop order confirmation emails are sent to the customer in Slovenian.
+- Club-shop order notification emails are sent to the SD Portal admin email.
 - Email branding and copy use ŠD Pohorje.
 - Admin new-registration notifications are sent to SD Portal settings email.
 
@@ -55,6 +64,12 @@ Submenus:
   - Opens native WordPress users table with full built-in functionality.
   - Filtered to Parent and Athlete roles only.
   - Parent/Athlete roles are hidden from the default WordPress users view.
+- Club Shop Products
+  - Native admin management for club-shop items.
+  - Supports product title, description, featured image, price, active/inactive state, and optional sizes.
+- Club Shop Orders
+  - Native admin order queue for submitted customer orders.
+  - Includes customer details, child/athlete recipient, ordered product snapshots, itemized quantities/sizes, status, and admin note.
 - Settings
   - Admin Email option for notification destination.
   - Shortcode reference for current frontend pages.
@@ -75,7 +90,7 @@ Submenus:
 
 ## Restore Guidance
 
-- Latest restore-point documentation is in docs/RESTORE-POINT-2026-07-01-v0.1.29.md.
+- Latest restore-point documentation is in docs/RESTORE-POINT-2026-07-13-v0.1.33.md.
 - Versioned restore ZIP snapshots are stored in docs/restore-points/.
 
 ## Notes

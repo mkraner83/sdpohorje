@@ -531,6 +531,220 @@
     color: #ffffff;
 }
 
+.sdp-club-grid {
+    display: grid;
+    gap: 18px;
+}
+
+.sdp-club-shop-wrap {
+    display: grid;
+    gap: 18px;
+}
+
+.sdp-club-cart-panel {
+    padding: 18px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(53, 111, 140, 0.08), rgba(198, 154, 71, 0.08));
+    border: 1px solid rgba(53, 111, 140, 0.16);
+}
+
+.sdp-club-cart-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.sdp-club-cart-header h4 {
+    margin: 0 0 4px;
+    color: var(--sdp-text);
+}
+
+.sdp-club-cart-header p {
+    margin: 0;
+    color: #355a6f;
+}
+
+.sdp-club-cart-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(53, 111, 140, 0.12);
+    color: var(--sdp-blue-dark);
+    font-weight: 700;
+}
+
+.sdp-club-cart-summary {
+    display: grid;
+    justify-items: end;
+    gap: 8px;
+}
+
+.sdp-club-cart-total {
+    color: var(--sdp-text);
+    font-weight: 700;
+}
+
+.sdp-club-cart-message {
+    margin: 0 0 14px;
+    padding: 11px 13px;
+    border-radius: 12px;
+    background: #edf7fd;
+    color: #1e4258;
+    border: 1px solid rgba(53, 111, 140, 0.16);
+}
+
+.sdp-club-cart-empty {
+    color: #355a6f;
+    margin-bottom: 14px;
+}
+
+.sdp-club-cart-items {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.sdp-club-cart-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(53, 111, 140, 0.14);
+}
+
+.sdp-club-cart-row-main {
+    display: grid;
+    gap: 4px;
+    color: #355a6f;
+}
+
+.sdp-club-cart-row-main strong {
+    color: var(--sdp-text);
+}
+
+.sdp-club-remove-item {
+    align-self: center;
+    padding: 10px 16px;
+    min-width: 0;
+    width: auto;
+    flex: 0 0 auto;
+    border-radius: 14px;
+}
+
+.sdp-club-card {
+    display: grid;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+    gap: 18px;
+    padding: 18px;
+    border: 1px solid rgba(53, 111, 140, 0.16);
+    border-radius: 18px;
+    background: #f9fcff;
+}
+
+.sdp-club-thumb-wrap,
+.sdp-club-thumb-placeholder {
+    min-height: 220px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: transparent;
+}
+
+.sdp-club-thumb-wrap img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.sdp-club-thumb-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sdp-blue-dark);
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.sdp-club-card-body {
+    display: grid;
+    gap: 12px;
+}
+
+.sdp-club-card-body h4 {
+    margin: 0;
+    color: var(--sdp-text);
+    font-size: 1.35rem;
+}
+
+.sdp-club-price {
+    margin: 0;
+    color: var(--sdp-blue);
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.sdp-club-description p {
+    margin: 0 0 10px;
+    color: #355a6f;
+    line-height: 1.6;
+}
+
+.sdp-club-order-form {
+    padding-top: 6px;
+}
+
+.sdp-club-order-items ul {
+    margin: 8px 0 10px;
+    padding-left: 18px;
+}
+
+.sdp-club-order-items li {
+    margin: 0 0 6px;
+    color: #355a6f;
+}
+
+.sdp-club-order-list {
+    display: grid;
+    gap: 14px;
+}
+
+.sdp-club-order-card {
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: #f6fbff;
+    border: 1px solid rgba(53, 111, 140, 0.16);
+}
+
+.sdp-club-order-card p {
+    margin: 0 0 8px;
+    color: #355a6f;
+}
+
+.sdp-club-order-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    color: var(--sdp-text);
+}
+
+.sdp-club-order-status {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(53, 111, 140, 0.12);
+    color: var(--sdp-blue-dark);
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
 @media (min-width: 960px) {
     .sdp-market-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -538,6 +752,10 @@
 
     .sdp-market-manage-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sdp-club-grid {
+        grid-template-columns: 1fr;
     }
 
     .sdp-market-filters {
@@ -578,5 +796,9 @@
 
     .sdp-auth-cta {
         padding: 13px 14px;
+    }
+
+    .sdp-club-card {
+        grid-template-columns: 1fr;
     }
 }

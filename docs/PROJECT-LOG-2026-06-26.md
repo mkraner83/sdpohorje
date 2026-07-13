@@ -217,9 +217,273 @@ This section records all major upgrades completed after the original MVP log.
 - 0.1.27 login page registration CTAs for parent and athlete.
 - 0.1.28 desktop row layout for the dual registration buttons.
 - 0.1.29 portal dashboard polish with a friendlier overview, profile-edit guidance, and used-item selling intro.
+- 0.1.30 club shop baseline with admin product management, order post type, dashboard tabs, and branded order emails.
+- 0.1.31 club shop polish with transparent product-image wrappers and branded admin order notifications.
+- 0.1.32 multi-item club-shop cart ordering with required child/athlete recipient field, itemized orders, and updated admin/email views.
+- 0.1.33 cart UI refinement with smaller remove buttons and live cart total calculation.
 
 ### Latest Restore Point Prepared
 
-- Added a new restore-point document for plugin version 0.1.29.
+- Added a new restore-point document for plugin version 0.1.33.
 - Archived the current plugin ZIP as a versioned restore snapshot.
 - Captured the current source commit and SHA-256 checksum for reproducibility.
+
+---
+
+## Update Log (2026-07-13)
+
+This section records the club-shop release and restore-point work completed on 2026-07-13.
+
+### Club Shop Module
+
+- Added a new club-shop catalog for official ŠD Pohorje products.
+- Added new frontend shortcodes:
+  - [sdp_club_shop]
+  - [sdp_club_orders]
+- Added new dashboard tabs:
+  - Klubska oprema
+  - Moja naročila
+- Added admin-managed Club Shop Products with:
+  - title
+  - description
+  - featured image
+  - price
+  - active/inactive state
+  - optional comma-separated sizes
+
+### Club Shop Ordering Flow
+
+- Initial single-item order flow was replaced by a multi-item cart flow.
+- Logged-in parents and athletes can now:
+  - add multiple products to cart
+  - choose quantity per product
+  - choose size where configured
+  - enter a required child/athlete recipient field before checkout
+  - submit one grouped no-payment order
+- Cart UI now includes:
+  - live item count
+  - live total amount
+  - smaller remove buttons in cart rows
+
+### Order Storage and Admin Visibility
+
+- Club shop orders are stored in the dedicated Club Shop Orders post type.
+- Each order now stores:
+  - customer identity
+  - child/athlete recipient
+  - itemized cart snapshot
+  - total quantity
+  - total amount
+  - shared customer note
+  - order status
+  - admin note
+- Admin order views were updated to show:
+  - recipient field
+  - itemized order contents
+  - summary totals
+
+### Email Delivery
+
+- Customer club-shop order confirmation email now supports itemized multi-product orders.
+- Admin club-shop notification email now uses the branded HTML wrapper plus plain-text fallback.
+- Both order email flows now include the child/athlete recipient and itemized order contents.
+
+### Version Progress (2026-07-13 Session)
+
+- 0.1.30 club shop baseline release
+- 0.1.31 admin email styling and image-wrapper polish release
+- 0.1.32 multi-item cart and recipient-field release
+- 0.1.33 cart total and remove-button refinement release
+
+### Restore Point Prepared
+
+- Added release notes for v0.1.33.
+- Added a restore-point document for v0.1.33.
+- Archived docs/restore-points/sd-pohorje-accounts-v0.1.33-2026-07-13.zip.
+- Captured source commit 0266628 and SHA-256 checksum for reproducibility.
+
+### Documentation Updated Alongside This Session
+
+- README.md
+- docs/PROJECT-LOG-2026-06-26.md
+- docs/RELEASE-NOTES-2026-07-13-v0.1.33.md
+- docs/RESTORE-POINT-2026-07-13-v0.1.33.md
+*** Add File: /Users/matjazkraner/sd-pohorje-wordpress-project/docs/RELEASE-NOTES-2026-07-13-v0.1.33.md
+# Release Notes - 2026-07-13 - v0.1.33
+
+## Highlights
+
+- Added the new `Naročilo klubske opreme` module inside the user portal.
+- Added admin-managed Club Shop Products and Club Shop Orders inside SD Portal.
+- Added branded customer and admin club-shop order emails.
+- Reworked club-shop ordering from single-product submit into a multi-item cart flow.
+- Added a required child/athlete recipient field before order submission.
+- Polished the cart UI with live totals and smaller remove buttons.
+- Documented the release with a new restore point and versioned ZIP snapshot.
+
+## User Experience Updates
+
+- Dashboard now includes two additional tabs:
+  - Klubska oprema
+  - Moja naročila
+- Logged-in parents and athletes can browse official club products, add multiple items to cart, and submit one grouped order.
+- Cart rows show quantity, size, price, item count, and a live total amount.
+- Before sending the order, the user must enter who the order is for.
+- Submitted orders are visible in the portal with itemized contents and status.
+
+## Club Shop Admin Updates
+
+- SD Portal now includes native admin management for Club Shop Products.
+- Products support:
+  - name
+  - description
+  - featured image
+  - price
+  - active/inactive toggle
+  - optional sizes
+- SD Portal now includes Club Shop Orders with:
+  - customer details
+  - child/athlete recipient
+  - itemized order contents
+  - total quantity and total amount
+  - order status
+  - admin note
+
+## Email Updates
+
+- Customer order confirmations use the branded ŠD Pohorje HTML wrapper with plain-text fallback.
+- Admin club-shop notifications now use the same branded styling with plain-text fallback.
+- Both emails include the child/athlete recipient and itemized order contents.
+
+## Packaging
+
+- Plugin version: 0.1.33
+- Source commit reference: 0266628
+- Restore ZIP snapshot: `docs/restore-points/sd-pohorje-accounts-v0.1.33-2026-07-13.zip`
+- Restore point document: `docs/RESTORE-POINT-2026-07-13-v0.1.33.md`
+*** Add File: /Users/matjazkraner/sd-pohorje-wordpress-project/docs/RESTORE-POINT-2026-07-13-v0.1.33.md
+# Restore Point - 2026-07-13 - v0.1.33
+
+## Summary
+
+This restore point captures the SD Pohorje Accounts plugin after the club-shop release, branded order-email rollout, multi-item cart ordering flow, and recipient-field improvements.
+
+## Release Identifier
+
+- Plugin version: 0.1.33
+- Restore date: 2026-07-13
+- Source commit reference: 0266628
+- Local git tag: restore-point-2026-07-13-v0.1.33
+
+## Restore Artifacts
+
+- Primary deploy ZIP:
+  - sd-pohorje-accounts.zip
+- Versioned restore snapshot:
+  - docs/restore-points/sd-pohorje-accounts-v0.1.33-2026-07-13.zip
+
+## Checksum (SHA-256)
+
+- 99e7f2c89beffa582c42c98f4104c074141883181be7e6c63203ca1ef16664d1
+
+## Included Functional Scope
+
+### Frontend Registration and Login
+
+- Athlete and parent registration forms remain in Slovenian.
+- Username is auto-suggested from first and last name, with no free-text username entry.
+- Phone fields are optional on both registration forms.
+- Successful registration keeps the user on the same form page and shows the inline login state.
+- Login page includes two branded registration CTAs for:
+  - Registracija starša
+  - Registracija atleta
+
+### Dashboard and Portal UX
+
+- Frontend portal shortcode remains [sdp_dashboard].
+- Dashboard tabs now include:
+  - Pregled
+  - Uredi profil
+  - Klubska oprema
+  - Moja naročila
+  - Moji oglasi
+  - Dodaj oglas
+- Dashboard overview continues to include profile and marketplace guidance.
+- Club shop is now available directly inside the portal.
+
+### Club Shop
+
+- Frontend shortcodes are available for:
+  - [sdp_club_shop]
+  - [sdp_club_orders]
+- Club Shop Products are admin-managed and support:
+  - title
+  - description
+  - featured image
+  - price
+  - active/inactive toggle
+  - optional sizes
+- Logged-in parents and athletes can:
+  - browse official club products
+  - add multiple products to a cart
+  - choose quantity per item
+  - choose size where configured
+  - enter a required child/athlete recipient before submitting
+  - send one grouped no-payment order
+- Cart UI includes:
+  - live item count
+  - live total amount
+  - remove-item actions
+- Portal order history shows itemized contents and order status.
+
+### Club Shop Orders and Admin
+
+- Club Shop Orders are stored in a dedicated custom post type.
+- Admin views include:
+  - customer details
+  - child/athlete recipient
+  - itemized order contents
+  - total quantity
+  - total amount
+  - status selector
+  - admin note
+
+### Marketplace
+
+- Marketplace remains active for used-item listings.
+- Seller submission, edit, delete, sold-state actions, detail pages, and search/filter/sort behavior remain available.
+
+### Email Delivery
+
+- User registration confirmation email remains branded and styled.
+- Marketplace inquiry emails remain branded with plain-text fallback.
+- Club-shop customer confirmation emails now include itemized multi-product orders.
+- Club-shop admin notification emails now use the branded HTML wrapper with plain-text fallback.
+- Club-shop emails include the child/athlete recipient field.
+
+## Restore Procedure
+
+1. In WordPress admin, go to Plugins -> Add New -> Upload Plugin.
+2. Upload docs/restore-points/sd-pohorje-accounts-v0.1.33-2026-07-13.zip or sd-pohorje-accounts.zip.
+3. Confirm replace/update existing plugin.
+4. Verify plugin version shows 0.1.33.
+
+## Verification Checklist After Restore
+
+- Dashboard shows tabs for Klubska oprema and Moja naročila.
+- Club shop products render correctly in the portal.
+- Users can add multiple products to the cart.
+- Cart shows live total amount and smaller remove buttons.
+- Order submission requires the child/athlete recipient field.
+- Submitted orders appear in Moja naročila with itemized contents.
+- SD Portal shows Club Shop Products and Club Shop Orders.
+- Admin order detail view shows recipient, itemized contents, total quantity, and total amount.
+- Customer receives branded club-shop confirmation email.
+- Admin receives branded club-shop notification email.
+
+## Documentation Updated Alongside This Restore Point
+
+- README.md
+- docs/PROJECT-LOG-2026-06-26.md
+- docs/RELEASE-NOTES-2026-07-13-v0.1.33.md
+- docs/RESTORE-POINT-2026-07-13-v0.1.33.md

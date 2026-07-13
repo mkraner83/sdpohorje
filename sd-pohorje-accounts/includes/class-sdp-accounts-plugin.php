@@ -20,8 +20,26 @@ class SDP_Accounts_Plugin
     const META_ITEM_CATEGORY = 'sdp_item_category';
     const META_ITEM_SIZE = 'sdp_item_size';
     const META_ITEM_STATE = 'sdp_item_state';
+    const META_CLUB_PRODUCT_PRICE = 'sdp_club_product_price';
+    const META_CLUB_PRODUCT_ACTIVE = 'sdp_club_product_active';
+    const META_CLUB_PRODUCT_SIZES = 'sdp_club_product_sizes';
+    const META_CLUB_ORDER_STATUS = 'sdp_club_order_status';
+    const META_CLUB_ORDER_ITEMS = 'sdp_club_order_items';
+    const META_CLUB_ORDER_CHILD_NAME = 'sdp_club_order_child_name';
+    const META_CLUB_ORDER_PRODUCT_ID = 'sdp_club_order_product_id';
+    const META_CLUB_ORDER_PRODUCT_NAME = 'sdp_club_order_product_name';
+    const META_CLUB_ORDER_PRODUCT_PRICE = 'sdp_club_order_product_price';
+    const META_CLUB_ORDER_QUANTITY = 'sdp_club_order_quantity';
+    const META_CLUB_ORDER_SIZE = 'sdp_club_order_size';
+    const META_CLUB_ORDER_NOTE = 'sdp_club_order_note';
+    const META_CLUB_ORDER_CUSTOMER_NAME = 'sdp_club_order_customer_name';
+    const META_CLUB_ORDER_CUSTOMER_EMAIL = 'sdp_club_order_customer_email';
+    const META_CLUB_ORDER_CUSTOMER_PHONE = 'sdp_club_order_customer_phone';
+    const META_CLUB_ORDER_ADMIN_NOTE = 'sdp_club_order_admin_note';
     const OPTION_ADMIN_NOTIFICATION_EMAIL = 'sdp_admin_notification_email';
     const MARKETPLACE_POST_TYPE = 'sdp_market_item';
+    const CLUB_PRODUCT_POST_TYPE = 'sdp_club_product';
+    const CLUB_ORDER_POST_TYPE = 'sdp_club_order';
 
     private static $instance = null;
 
@@ -38,6 +56,7 @@ class SDP_Accounts_Plugin
     {
         self::register_roles();
         self::register_marketplace_post_type();
+        self::register_club_shop_post_types();
         flush_rewrite_rules();
     }
 
@@ -97,6 +116,47 @@ class SDP_Accounts_Plugin
         );
     }
 
+    private static function register_club_shop_post_types()
+    {
+        register_post_type(
+            self::CLUB_PRODUCT_POST_TYPE,
+            array(
+                'labels' => array(
+                    'name' => 'Club Shop Products',
+                    'singular_name' => 'Club Shop Product',
+                    'menu_name' => 'Club Shop Products',
+                    'add_new_item' => 'Add New Product',
+                    'edit_item' => 'Edit Product',
+                ),
+                'public' => false,
+                'show_ui' => true,
+                'show_in_menu' => 'sdp-portal-users',
+                'supports' => array('title', 'editor', 'thumbnail', 'page-attributes'),
+                'capability_type' => 'post',
+                'map_meta_cap' => true,
+            )
+        );
+
+        register_post_type(
+            self::CLUB_ORDER_POST_TYPE,
+            array(
+                'labels' => array(
+                    'name' => 'Club Shop Orders',
+                    'singular_name' => 'Club Shop Order',
+                    'menu_name' => 'Club Shop Orders',
+                    'add_new_item' => 'Add New Order',
+                    'edit_item' => 'View Order',
+                ),
+                'public' => false,
+                'show_ui' => true,
+                'show_in_menu' => 'sdp-portal-users',
+                'supports' => array('title', 'author'),
+                'capability_type' => 'post',
+                'map_meta_cap' => true,
+            )
+        );
+    }
+
     private function __construct()
     {
         add_action('init', array($this, 'register_roles_runtime'));
@@ -111,6 +171,8 @@ class SDP_Accounts_Plugin
         add_shortcode('sdp_dashboard', array($this, 'render_dashboard'));
         add_shortcode('sdp_marketplace_sell', array($this, 'render_marketplace_sell_form'));
         add_shortcode('sdp_marketplace', array($this, 'render_marketplace_listings'));
+        add_shortcode('sdp_club_shop', array($this, 'render_club_shop'));
+        add_shortcode('sdp_club_orders', array($this, 'render_club_orders'));
 
         add_filter('authenticate', array($this, 'block_pending_users'), 30, 3);
         add_filter('login_redirect', array($this, 'force_portal_user_login_redirect'), 10, 3);
@@ -120,12 +182,20 @@ class SDP_Accounts_Plugin
         add_action('admin_menu', array($this, 'register_admin_pages'));
         add_action('admin_post_sdp_portal_save_settings', array($this, 'handle_admin_settings_save'));
         add_action('pre_get_users', array($this, 'filter_users_admin_lists'));
+        add_action('add_meta_boxes', array($this, 'register_club_shop_meta_boxes'));
+        add_action('save_post_' . self::CLUB_PRODUCT_POST_TYPE, array($this, 'save_club_product_meta'));
+        add_action('save_post_' . self::CLUB_ORDER_POST_TYPE, array($this, 'save_club_order_meta'));
+        add_filter('manage_' . self::CLUB_PRODUCT_POST_TYPE . '_posts_columns', array($this, 'set_club_product_columns'));
+        add_action('manage_' . self::CLUB_PRODUCT_POST_TYPE . '_posts_custom_column', array($this, 'render_club_product_column'), 10, 2);
+        add_filter('manage_' . self::CLUB_ORDER_POST_TYPE . '_posts_columns', array($this, 'set_club_order_columns'));
+        add_action('manage_' . self::CLUB_ORDER_POST_TYPE . '_posts_custom_column', array($this, 'render_club_order_column'), 10, 2);
     }
 
     public function register_roles_runtime()
     {
         self::register_roles();
         self::register_marketplace_post_type();
+        self::register_club_shop_post_types();
     }
 
     private function is_portal_user($user = null)
@@ -264,6 +334,11 @@ class SDP_Accounts_Plugin
 
         if ($action === 'marketplace_mark_sold') {
             $this->handle_marketplace_mark_sold();
+            return;
+        }
+
+        if ($action === 'club_order_create') {
+            $this->handle_club_order_create();
         }
     }
 
@@ -276,6 +351,365 @@ class SDP_Accounts_Plugin
         $user = wp_get_current_user();
 
         return in_array(self::ATHLETE_ROLE, $user->roles, true) || in_array(self::PARENT_ROLE, $user->roles, true);
+    }
+
+    private function can_place_club_orders()
+    {
+        return $this->can_manage_marketplace();
+    }
+
+    private function get_club_order_status_labels()
+    {
+        return array(
+            'new' => 'Novo',
+            'confirmed' => 'Potrjeno',
+            'completed' => 'Zaključeno',
+            'cancelled' => 'Preklicano',
+        );
+    }
+
+    private function get_club_order_status_label($status)
+    {
+        $labels = $this->get_club_order_status_labels();
+
+        return isset($labels[$status]) ? $labels[$status] : $labels['new'];
+    }
+
+    private function get_club_product_sizes($post_id)
+    {
+        $sizes_raw = (string) get_post_meta($post_id, self::META_CLUB_PRODUCT_SIZES, true);
+
+        if ($sizes_raw === '') {
+            return array();
+        }
+
+        $sizes = array_map('trim', explode(',', $sizes_raw));
+        $sizes = array_filter($sizes, static function ($size) {
+            return $size !== '';
+        });
+
+        return array_values(array_unique($sizes));
+    }
+
+    private function is_club_product_active($post_id)
+    {
+        return get_post_meta($post_id, self::META_CLUB_PRODUCT_ACTIVE, true) !== 'no';
+    }
+
+    private function get_club_product_price($post_id)
+    {
+        return (string) get_post_meta($post_id, self::META_CLUB_PRODUCT_PRICE, true);
+    }
+
+    private function format_price($price)
+    {
+        if ($price === '' || !is_numeric((string) $price)) {
+            return '';
+        }
+
+        return number_format((float) $price, 2, ',', '.') . ' EUR';
+    }
+
+    private function get_club_product($post_id)
+    {
+        $post = get_post($post_id);
+
+        if (!$post || $post->post_type !== self::CLUB_PRODUCT_POST_TYPE || $post->post_status !== 'publish') {
+            return null;
+        }
+
+        if (!$this->is_club_product_active($post->ID)) {
+            return null;
+        }
+
+        return $post;
+    }
+
+    private function get_club_order_items($order_id)
+    {
+        $raw_items = get_post_meta($order_id, self::META_CLUB_ORDER_ITEMS, true);
+        $items = array();
+
+        if (is_string($raw_items) && $raw_items !== '') {
+            $decoded = json_decode($raw_items, true);
+
+            if (is_array($decoded)) {
+                foreach ($decoded as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+
+                    $name = isset($item['name']) ? sanitize_text_field((string) $item['name']) : '';
+                    $quantity = isset($item['quantity']) ? max(1, (int) $item['quantity']) : 0;
+                    $price = isset($item['price']) && is_numeric((string) $item['price']) ? number_format((float) $item['price'], 2, '.', '') : '';
+
+                    if ($name === '' || $quantity < 1) {
+                        continue;
+                    }
+
+                    $items[] = array(
+                        'product_id' => isset($item['product_id']) ? (int) $item['product_id'] : 0,
+                        'name' => $name,
+                        'price' => $price,
+                        'quantity' => $quantity,
+                        'size' => isset($item['size']) ? sanitize_text_field((string) $item['size']) : '',
+                    );
+                }
+            }
+        }
+
+        if (!empty($items)) {
+            return $items;
+        }
+
+        $legacy_name = (string) get_post_meta($order_id, self::META_CLUB_ORDER_PRODUCT_NAME, true);
+        $legacy_quantity = max(1, (int) get_post_meta($order_id, self::META_CLUB_ORDER_QUANTITY, true));
+
+        if ($legacy_name === '') {
+            return array();
+        }
+
+        return array(
+            array(
+                'product_id' => (int) get_post_meta($order_id, self::META_CLUB_ORDER_PRODUCT_ID, true),
+                'name' => $legacy_name,
+                'price' => (string) get_post_meta($order_id, self::META_CLUB_ORDER_PRODUCT_PRICE, true),
+                'quantity' => $legacy_quantity,
+                'size' => (string) get_post_meta($order_id, self::META_CLUB_ORDER_SIZE, true),
+            ),
+        );
+    }
+
+    private function get_club_order_total_from_items($items)
+    {
+        $total = 0.0;
+
+        foreach ($items as $item) {
+            $price = isset($item['price']) ? (string) $item['price'] : '';
+            $quantity = isset($item['quantity']) ? max(1, (int) $item['quantity']) : 1;
+
+            if (is_numeric($price)) {
+                $total += (float) $price * $quantity;
+            }
+        }
+
+        return number_format($total, 2, '.', '');
+    }
+
+    private function get_club_order_total_quantity_from_items($items)
+    {
+        $quantity = 0;
+
+        foreach ($items as $item) {
+            $quantity += isset($item['quantity']) ? max(1, (int) $item['quantity']) : 1;
+        }
+
+        return max(1, $quantity);
+    }
+
+    private function get_club_order_items_summary_from_items($items)
+    {
+        if (empty($items)) {
+            return '';
+        }
+
+        $first_name = isset($items[0]['name']) ? (string) $items[0]['name'] : '';
+
+        if (count($items) === 1) {
+            return $first_name;
+        }
+
+        return $first_name . ' +' . (count($items) - 1);
+    }
+
+    private function build_club_order_items_html($items)
+    {
+        if (empty($items)) {
+            return '<p style="margin:0;">-</p>';
+        }
+
+        $html = '<ul style="margin:0;padding:0 0 0 18px;">';
+
+        foreach ($items as $item) {
+            $name = isset($item['name']) ? (string) $item['name'] : '';
+            $quantity = isset($item['quantity']) ? max(1, (int) $item['quantity']) : 1;
+            $size = isset($item['size']) ? (string) $item['size'] : '';
+            $price = isset($item['price']) ? (string) $item['price'] : '';
+            $line_total = is_numeric($price) ? number_format((float) $price * $quantity, 2, '.', '') : '';
+
+            $html .= '<li style="margin:0 0 8px;">';
+            $html .= '<strong>' . esc_html($name) . '</strong>';
+            $html .= ' x ' . esc_html((string) $quantity);
+
+            if ($size !== '') {
+                $html .= ' | ' . esc_html($size);
+            }
+
+            if ($line_total !== '') {
+                $html .= ' | ' . esc_html($this->format_price($line_total));
+            }
+
+            $html .= '</li>';
+        }
+
+        $html .= '</ul>';
+
+        return $html;
+    }
+
+    private function build_club_order_items_text($items)
+    {
+        if (empty($items)) {
+            return '-';
+        }
+
+        $lines = array();
+
+        foreach ($items as $item) {
+            $name = isset($item['name']) ? (string) $item['name'] : '';
+            $quantity = isset($item['quantity']) ? max(1, (int) $item['quantity']) : 1;
+            $size = isset($item['size']) ? (string) $item['size'] : '';
+            $price = isset($item['price']) ? (string) $item['price'] : '';
+            $line = $name . ' x ' . $quantity;
+
+            if ($size !== '') {
+                $line .= ' | ' . $size;
+            }
+
+            if (is_numeric($price)) {
+                $line .= ' | ' . $this->format_price(number_format((float) $price * $quantity, 2, '.', ''));
+            }
+
+            $lines[] = $line;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function handle_club_order_create()
+    {
+        if (!$this->can_place_club_orders()) {
+            $this->redirect_with_message('error', 'Za oddajo naročila se morate prijaviti kot atlet ali starš.');
+        }
+
+        if (!$this->nonce_ok('sdp_club_order_create_nonce')) {
+            $this->redirect_with_message('error', 'Varnostno preverjanje ni uspelo. Poskusite znova.');
+        }
+
+        $cart_payload = isset($_POST['club_cart_payload']) ? wp_unslash($_POST['club_cart_payload']) : '';
+        $child_name = isset($_POST['club_child_name']) ? sanitize_text_field(wp_unslash($_POST['club_child_name'])) : '';
+        $note = isset($_POST['club_note']) ? sanitize_textarea_field(wp_unslash($_POST['club_note'])) : '';
+
+        if ($child_name === '') {
+            $this->redirect_with_message('error', 'Prosimo, vnesite za koga je naročilo.');
+        }
+
+        if (!is_string($cart_payload) || $cart_payload === '') {
+            $this->redirect_with_message('error', 'Košarica je prazna. Pred oddajo dodajte vsaj en izdelek.');
+        }
+
+        $decoded_cart = json_decode($cart_payload, true);
+
+        if (!is_array($decoded_cart) || empty($decoded_cart)) {
+            $this->redirect_with_message('error', 'Košarice ni bilo mogoče prebrati. Izdelke dodajte ponovno.');
+        }
+
+        $user_id = get_current_user_id();
+        $user = get_user_by('id', $user_id);
+
+        if (!$user || !is_email($user->user_email)) {
+            $this->redirect_with_message('error', 'Za oddajo naročila potrebujete veljaven uporabniški račun.');
+        }
+
+        $first_name = (string) get_user_meta($user_id, 'first_name', true);
+        $last_name = (string) get_user_meta($user_id, 'last_name', true);
+        $phone = (string) get_user_meta($user_id, 'sdp_phone', true);
+        $customer_name = trim($first_name . ' ' . $last_name);
+
+        if ($customer_name === '') {
+            $customer_name = $user->display_name ? $user->display_name : $user->user_login;
+        }
+
+        $normalized_items = array();
+
+        foreach ($decoded_cart as $cart_item) {
+            if (!is_array($cart_item)) {
+                continue;
+            }
+
+            $product_id = isset($cart_item['product_id']) ? (int) $cart_item['product_id'] : 0;
+            $quantity = isset($cart_item['quantity']) ? (int) $cart_item['quantity'] : 0;
+            $size = isset($cart_item['size']) ? sanitize_text_field((string) $cart_item['size']) : '';
+
+            if (!$product_id || $quantity < 1) {
+                continue;
+            }
+
+            $product = $this->get_club_product($product_id);
+
+            if (!$product) {
+                $this->redirect_with_message('error', 'Eden od izbranih izdelkov ni več na voljo za naročilo.');
+            }
+
+            $available_sizes = $this->get_club_product_sizes($product->ID);
+
+            if (!empty($available_sizes) && ($size === '' || !in_array($size, $available_sizes, true))) {
+                $this->redirect_with_message('error', 'Eden od izdelkov nima veljavno izbrane velikosti.');
+            }
+
+            $price = $this->get_club_product_price($product->ID);
+
+            $normalized_items[] = array(
+                'product_id' => $product->ID,
+                'name' => $product->post_title,
+                'price' => $price,
+                'quantity' => $quantity,
+                'size' => $size,
+            );
+        }
+
+        if (empty($normalized_items)) {
+            $this->redirect_with_message('error', 'Košarica je prazna. Pred oddajo dodajte vsaj en izdelek.');
+        }
+
+        $order_title = sprintf('Naročilo - %s - %s', $customer_name, $child_name);
+
+        $order_id = wp_insert_post(
+            array(
+                'post_type' => self::CLUB_ORDER_POST_TYPE,
+                'post_title' => $order_title,
+                'post_status' => 'publish',
+                'post_author' => $user_id,
+            ),
+            true
+        );
+
+        if (is_wp_error($order_id)) {
+            $this->redirect_with_message('error', 'Naročila ni bilo mogoče oddati. Poskusite ponovno.');
+        }
+
+        $first_item = $normalized_items[0];
+        $summary_name = $this->get_club_order_items_summary_from_items($normalized_items);
+        $summary_total = $this->get_club_order_total_from_items($normalized_items);
+        $summary_quantity = $this->get_club_order_total_quantity_from_items($normalized_items);
+
+        update_post_meta($order_id, self::META_CLUB_ORDER_STATUS, 'new');
+        update_post_meta($order_id, self::META_CLUB_ORDER_ITEMS, wp_json_encode($normalized_items));
+        update_post_meta($order_id, self::META_CLUB_ORDER_CHILD_NAME, $child_name);
+        update_post_meta($order_id, self::META_CLUB_ORDER_PRODUCT_ID, $first_item['product_id']);
+        update_post_meta($order_id, self::META_CLUB_ORDER_PRODUCT_NAME, $summary_name);
+        update_post_meta($order_id, self::META_CLUB_ORDER_PRODUCT_PRICE, $summary_total);
+        update_post_meta($order_id, self::META_CLUB_ORDER_QUANTITY, $summary_quantity);
+        update_post_meta($order_id, self::META_CLUB_ORDER_SIZE, count($normalized_items) === 1 ? $first_item['size'] : 'Več izdelkov');
+        update_post_meta($order_id, self::META_CLUB_ORDER_NOTE, $note);
+        update_post_meta($order_id, self::META_CLUB_ORDER_CUSTOMER_NAME, $customer_name);
+        update_post_meta($order_id, self::META_CLUB_ORDER_CUSTOMER_EMAIL, $user->user_email);
+        update_post_meta($order_id, self::META_CLUB_ORDER_CUSTOMER_PHONE, $phone);
+
+        $this->send_club_order_confirmation($order_id);
+        $this->send_admin_club_order_notice($order_id);
+
+        $this->redirect_with_message('success', 'Naročilo je bilo uspešno oddano. Potrditev boste prejeli po e-pošti.');
     }
 
     private function get_marketplace_allowed_conditions()
@@ -1099,6 +1533,8 @@ class SDP_Accounts_Plugin
         echo '<tr><td>User Dashboard</td><td><code>[sdp_dashboard]</code></td><td>Uporabniski portal</td></tr>';
         echo '<tr><td>Marketplace Sell + My Listings</td><td><code>[sdp_marketplace_sell]</code></td><td>Prodaj rabljeno opremo</td></tr>';
         echo '<tr><td>Marketplace Browse</td><td><code>[sdp_marketplace]</code></td><td>Rabljena oprema</td></tr>';
+        echo '<tr><td>Club Shop</td><td><code>[sdp_club_shop]</code></td><td>Klubska oprema</td></tr>';
+        echo '<tr><td>Club Orders</td><td><code>[sdp_club_orders]</code></td><td>Moja narocila</td></tr>';
         echo '</tbody></table>';
 
         echo '</div>';
@@ -1124,6 +1560,213 @@ class SDP_Accounts_Plugin
 
         wp_safe_redirect(add_query_arg('sdp_settings_updated', '1', $redirect_url));
         exit;
+    }
+
+    public function register_club_shop_meta_boxes()
+    {
+        add_meta_box(
+            'sdp-club-product-details',
+            'Product Details',
+            array($this, 'render_club_product_meta_box'),
+            self::CLUB_PRODUCT_POST_TYPE,
+            'normal',
+            'default'
+        );
+
+        add_meta_box(
+            'sdp-club-order-details',
+            'Order Details',
+            array($this, 'render_club_order_meta_box'),
+            self::CLUB_ORDER_POST_TYPE,
+            'normal',
+            'default'
+        );
+    }
+
+    public function render_club_product_meta_box($post)
+    {
+        wp_nonce_field('sdp_club_product_meta', 'sdp_club_product_meta_nonce');
+
+        $price = $this->get_club_product_price($post->ID);
+        $sizes = (string) get_post_meta($post->ID, self::META_CLUB_PRODUCT_SIZES, true);
+        $is_active = $this->is_club_product_active($post->ID);
+
+        echo '<p><label for="sdp_club_product_price"><strong>Price (EUR)</strong></label></p>';
+        echo '<input id="sdp_club_product_price" name="sdp_club_product_price" type="number" min="0" step="0.01" value="' . esc_attr($price) . '" style="width:180px;" />';
+        echo '<p class="description">Displayed on the frontend club shop card.</p>';
+
+        echo '<p style="margin-top:16px;"><label for="sdp_club_product_sizes"><strong>Available Sizes</strong></label></p>';
+        echo '<input id="sdp_club_product_sizes" name="sdp_club_product_sizes" type="text" value="' . esc_attr($sizes) . '" class="widefat" />';
+        echo '<p class="description">Optional. Enter comma-separated sizes, for example: 128, 140, XS, S, M, L.</p>';
+
+        echo '<p style="margin-top:16px;">';
+        echo '<label><input name="sdp_club_product_active" type="checkbox" value="yes" ' . checked($is_active, true, false) . ' /> Active product</label>';
+        echo '</p>';
+    }
+
+    public function render_club_order_meta_box($post)
+    {
+        wp_nonce_field('sdp_club_order_meta', 'sdp_club_order_meta_nonce');
+
+        $items = $this->get_club_order_items($post->ID);
+        $note = (string) get_post_meta($post->ID, self::META_CLUB_ORDER_NOTE, true);
+        $child_name = (string) get_post_meta($post->ID, self::META_CLUB_ORDER_CHILD_NAME, true);
+        $customer_name = (string) get_post_meta($post->ID, self::META_CLUB_ORDER_CUSTOMER_NAME, true);
+        $customer_email = (string) get_post_meta($post->ID, self::META_CLUB_ORDER_CUSTOMER_EMAIL, true);
+        $customer_phone = (string) get_post_meta($post->ID, self::META_CLUB_ORDER_CUSTOMER_PHONE, true);
+        $status = (string) get_post_meta($post->ID, self::META_CLUB_ORDER_STATUS, true);
+        $admin_note = (string) get_post_meta($post->ID, self::META_CLUB_ORDER_ADMIN_NOTE, true);
+        $total = $this->get_club_order_total_from_items($items);
+
+        echo '<table class="form-table" role="presentation">';
+        echo '<tr><th scope="row">Customer</th><td>' . esc_html($customer_name !== '' ? $customer_name : 'Unknown') . '</td></tr>';
+        echo '<tr><th scope="row">For Child/Athlete</th><td>' . esc_html($child_name !== '' ? $child_name : '-') . '</td></tr>';
+        echo '<tr><th scope="row">Email</th><td><a href="mailto:' . esc_attr($customer_email) . '">' . esc_html($customer_email) . '</a></td></tr>';
+        echo '<tr><th scope="row">Phone</th><td>' . esc_html($customer_phone !== '' ? $customer_phone : '-') . '</td></tr>';
+        echo '<tr><th scope="row">Items</th><td>' . $this->build_club_order_items_html($items) . '</td></tr>';
+        echo '<tr><th scope="row">Total Quantity</th><td>' . esc_html((string) $this->get_club_order_total_quantity_from_items($items)) . '</td></tr>';
+        echo '<tr><th scope="row">Total</th><td>' . esc_html($this->format_price($total)) . '</td></tr>';
+        echo '<tr><th scope="row">Customer Note</th><td>' . nl2br(esc_html($note !== '' ? $note : '-')) . '</td></tr>';
+        echo '<tr><th scope="row"><label for="sdp_club_order_status">Status</label></th><td>';
+        echo '<select name="sdp_club_order_status" id="sdp_club_order_status">';
+        foreach ($this->get_club_order_status_labels() as $status_key => $label) {
+            echo '<option value="' . esc_attr($status_key) . '" ' . selected($status, $status_key, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '</select>';
+        echo '</td></tr>';
+        echo '<tr><th scope="row"><label for="sdp_club_order_admin_note">Admin Note</label></th><td>';
+        echo '<textarea name="sdp_club_order_admin_note" id="sdp_club_order_admin_note" rows="4" class="large-text">' . esc_textarea($admin_note) . '</textarea>';
+        echo '</td></tr>';
+        echo '</table>';
+    }
+
+    public function save_club_product_meta($post_id)
+    {
+        if (!isset($_POST['sdp_club_product_meta_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['sdp_club_product_meta_nonce'])), 'sdp_club_product_meta')) {
+            return;
+        }
+
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+
+        if (!current_user_can('edit_post', $post_id)) {
+            return;
+        }
+
+        $price_raw = isset($_POST['sdp_club_product_price']) ? sanitize_text_field(wp_unslash($_POST['sdp_club_product_price'])) : '';
+        $sizes = isset($_POST['sdp_club_product_sizes']) ? sanitize_text_field(wp_unslash($_POST['sdp_club_product_sizes'])) : '';
+        $is_active = isset($_POST['sdp_club_product_active']) && sanitize_text_field(wp_unslash($_POST['sdp_club_product_active'])) === 'yes' ? 'yes' : 'no';
+
+        if ($price_raw !== '' && is_numeric(str_replace(',', '.', $price_raw))) {
+            $price = number_format((float) str_replace(',', '.', $price_raw), 2, '.', '');
+            update_post_meta($post_id, self::META_CLUB_PRODUCT_PRICE, $price);
+        } else {
+            delete_post_meta($post_id, self::META_CLUB_PRODUCT_PRICE);
+        }
+
+        update_post_meta($post_id, self::META_CLUB_PRODUCT_SIZES, $sizes);
+        update_post_meta($post_id, self::META_CLUB_PRODUCT_ACTIVE, $is_active);
+    }
+
+    public function save_club_order_meta($post_id)
+    {
+        if (!isset($_POST['sdp_club_order_meta_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['sdp_club_order_meta_nonce'])), 'sdp_club_order_meta')) {
+            return;
+        }
+
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+
+        if (!current_user_can('edit_post', $post_id)) {
+            return;
+        }
+
+        $status = isset($_POST['sdp_club_order_status']) ? sanitize_key(wp_unslash($_POST['sdp_club_order_status'])) : 'new';
+        $admin_note = isset($_POST['sdp_club_order_admin_note']) ? sanitize_textarea_field(wp_unslash($_POST['sdp_club_order_admin_note'])) : '';
+        $labels = $this->get_club_order_status_labels();
+
+        if (!isset($labels[$status])) {
+            $status = 'new';
+        }
+
+        update_post_meta($post_id, self::META_CLUB_ORDER_STATUS, $status);
+        update_post_meta($post_id, self::META_CLUB_ORDER_ADMIN_NOTE, $admin_note);
+    }
+
+    public function set_club_product_columns($columns)
+    {
+        $columns['sdp_club_product_price'] = 'Price';
+        $columns['sdp_club_product_sizes'] = 'Sizes';
+        $columns['sdp_club_product_active'] = 'Active';
+
+        return $columns;
+    }
+
+    public function render_club_product_column($column, $post_id)
+    {
+        if ($column === 'sdp_club_product_price') {
+            echo esc_html($this->format_price($this->get_club_product_price($post_id)));
+            return;
+        }
+
+        if ($column === 'sdp_club_product_sizes') {
+            $sizes = $this->get_club_product_sizes($post_id);
+            echo esc_html(!empty($sizes) ? implode(', ', $sizes) : '-');
+            return;
+        }
+
+        if ($column === 'sdp_club_product_active') {
+            echo esc_html($this->is_club_product_active($post_id) ? 'Yes' : 'No');
+        }
+    }
+
+    public function set_club_order_columns($columns)
+    {
+        $columns['sdp_club_order_customer'] = 'Customer';
+        $columns['sdp_club_order_product'] = 'Items';
+        $columns['sdp_club_order_quantity'] = 'Quantity';
+        $columns['sdp_club_order_total'] = 'Total';
+        $columns['sdp_club_order_status'] = 'Status';
+
+        return $columns;
+    }
+
+    public function render_club_order_column($column, $post_id)
+    {
+        $items = $this->get_club_order_items($post_id);
+
+        if ($column === 'sdp_club_order_customer') {
+            $customer_name = (string) get_post_meta($post_id, self::META_CLUB_ORDER_CUSTOMER_NAME, true);
+            $child_name = (string) get_post_meta($post_id, self::META_CLUB_ORDER_CHILD_NAME, true);
+            echo esc_html($customer_name);
+
+            if ($child_name !== '') {
+                echo '<br><span style="color:#50575e;">For: ' . esc_html($child_name) . '</span>';
+            }
+            return;
+        }
+
+        if ($column === 'sdp_club_order_product') {
+            echo esc_html($this->get_club_order_items_summary_from_items($items));
+            return;
+        }
+
+        if ($column === 'sdp_club_order_quantity') {
+            echo esc_html((string) $this->get_club_order_total_quantity_from_items($items));
+            return;
+        }
+
+        if ($column === 'sdp_club_order_total') {
+            echo esc_html($this->format_price($this->get_club_order_total_from_items($items)));
+            return;
+        }
+
+        if ($column === 'sdp_club_order_status') {
+            $status = (string) get_post_meta($post_id, self::META_CLUB_ORDER_STATUS, true);
+            echo esc_html($this->get_club_order_status_label($status));
+        }
     }
 
     private function get_admin_notification_email()
@@ -2001,12 +2644,14 @@ class SDP_Accounts_Plugin
         $dashboard_url = get_permalink();
         $tab = isset($_GET['sdp_tab']) ? sanitize_key(wp_unslash($_GET['sdp_tab'])) : 'overview';
 
-        if (!in_array($tab, array('overview', 'profile', 'my-listings', 'new-listing'), true)) {
+        if (!in_array($tab, array('overview', 'profile', 'club-shop', 'club-orders', 'my-listings', 'new-listing'), true)) {
             $tab = 'overview';
         }
 
         $overview_url = add_query_arg('sdp_tab', 'overview', $dashboard_url);
         $profile_url = add_query_arg('sdp_tab', 'profile', $dashboard_url);
+        $club_shop_url = add_query_arg('sdp_tab', 'club-shop', $dashboard_url);
+        $club_orders_url = add_query_arg('sdp_tab', 'club-orders', $dashboard_url);
         $my_listings_url = add_query_arg('sdp_tab', 'my-listings', $dashboard_url);
         $new_listing_url = add_query_arg('sdp_tab', 'new-listing', $dashboard_url);
 
@@ -2028,6 +2673,10 @@ class SDP_Accounts_Plugin
                 <nav class="sdp-dashboard-nav" aria-label="Navigacija uporabniškega portala">
                     <a class="sdp-dashboard-tab <?php echo $tab === 'overview' ? 'is-active' : ''; ?>" href="<?php echo esc_url($overview_url); ?>">Pregled</a>
                     <a class="sdp-dashboard-tab <?php echo $tab === 'profile' ? 'is-active' : ''; ?>" href="<?php echo esc_url($profile_url); ?>">Uredi profil</a>
+                    <?php if ($this->can_place_club_orders()) : ?>
+                        <a class="sdp-dashboard-tab <?php echo $tab === 'club-shop' ? 'is-active' : ''; ?>" href="<?php echo esc_url($club_shop_url); ?>">Klubska oprema</a>
+                        <a class="sdp-dashboard-tab <?php echo $tab === 'club-orders' ? 'is-active' : ''; ?>" href="<?php echo esc_url($club_orders_url); ?>">Moja naročila</a>
+                    <?php endif; ?>
                     <?php if ($this->can_manage_marketplace()) : ?>
                         <a class="sdp-dashboard-tab <?php echo $tab === 'my-listings' ? 'is-active' : ''; ?>" href="<?php echo esc_url($my_listings_url); ?>">Moji oglasi</a>
                         <a class="sdp-dashboard-tab <?php echo $tab === 'new-listing' ? 'is-active' : ''; ?>" href="<?php echo esc_url($new_listing_url); ?>">Dodaj oglas</a>
@@ -2051,9 +2700,13 @@ class SDP_Accounts_Plugin
                                 <strong>Prodaja rabljenih predmetov</strong>
                                 <span>Dodajte oglas, uredite svoje oglase in označite prodane izdelke.</span>
                             </div>
+                            <div class="sdp-dashboard-highlight">
+                                <strong>Klubska oprema</strong>
+                                <span>Oddajte naročilo za uradno klubsko opremo in spremljajte svoja naročila.</span>
+                            </div>
                         </div>
 
-                        <p class="sdp-dashboard-note">Uporabite zavihke zgoraj za hiter dostop do profila in oglasov. Nove možnosti bomo dodajali postopoma.</p>
+                        <p class="sdp-dashboard-note">Uporabite zavihke zgoraj za hiter dostop do profila, klubske opreme in oglasov.</p>
                     </div>
                 <?php endif; ?>
 
@@ -2099,6 +2752,20 @@ class SDP_Accounts_Plugin
                     </div>
                 <?php endif; ?>
 
+                <?php if ($tab === 'club-shop' && $this->can_place_club_orders()) : ?>
+                    <div class="sdp-dashboard-panel">
+                        <h3>Klubska oprema</h3>
+                        <?php echo $this->render_club_shop_inner($club_shop_url); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($tab === 'club-orders' && $this->can_place_club_orders()) : ?>
+                    <div class="sdp-dashboard-panel">
+                        <h3>Moja naročila</h3>
+                        <?php echo $this->render_club_orders_inner(); ?>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($tab === 'my-listings' && $this->can_manage_marketplace()) : ?>
                     <div class="sdp-dashboard-panel">
                         <h3>Moji oglasi</h3>
@@ -2122,6 +2789,214 @@ class SDP_Accounts_Plugin
             </div>
         </div>
         <?php
+        return ob_get_clean();
+    }
+
+    public function render_club_shop()
+    {
+        $current_url = $this->get_current_request_url();
+
+        ob_start();
+        ?>
+        <div class="sdp-auth-wrap">
+            <?php echo wp_kses_post($this->get_notice_html()); ?>
+            <?php echo wp_kses_post($this->get_auth_bar_html($current_url)); ?>
+            <div class="sdp-auth-card">
+                <h2>Klubska oprema</h2>
+                <?php echo $this->render_club_shop_inner(get_permalink()); ?>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    public function render_club_orders()
+    {
+        $current_url = $this->get_current_request_url();
+
+        ob_start();
+        ?>
+        <div class="sdp-auth-wrap">
+            <?php echo wp_kses_post($this->get_notice_html()); ?>
+            <?php echo wp_kses_post($this->get_auth_bar_html($current_url)); ?>
+            <div class="sdp-auth-card">
+                <h2>Moja naročila</h2>
+                <?php echo $this->render_club_orders_inner(); ?>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    private function render_club_shop_inner($return_url)
+    {
+        if (!$this->can_place_club_orders()) {
+            return '<p>Naročanje klubske opreme je na voljo prijavljenim staršem in atletom.</p>';
+        }
+
+        $products = get_posts(
+            array(
+                'post_type' => self::CLUB_PRODUCT_POST_TYPE,
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'orderby' => array(
+                    'menu_order' => 'ASC',
+                    'title' => 'ASC',
+                ),
+                'meta_query' => array(
+                    'relation' => 'OR',
+                    array(
+                        'key' => self::META_CLUB_PRODUCT_ACTIVE,
+                        'compare' => 'NOT EXISTS',
+                    ),
+                    array(
+                        'key' => self::META_CLUB_PRODUCT_ACTIVE,
+                        'value' => 'yes',
+                        'compare' => '=',
+                    ),
+                ),
+            )
+        );
+
+        if (empty($products)) {
+            return '<p>Trenutno ni aktivnih izdelkov klubske opreme.</p>';
+        }
+
+        ob_start();
+        ?>
+        <div class="sdp-club-shop-wrap">
+            <div class="sdp-club-cart-panel">
+                <div class="sdp-club-cart-header">
+                    <div>
+                        <h4>Košarica</h4>
+                        <p>Dodajte več izdelkov in nato oddajte eno skupno naročilo.</p>
+                    </div>
+                    <div class="sdp-club-cart-summary">
+                        <span class="sdp-club-cart-count">0 izdelkov</span>
+                        <span class="sdp-club-cart-total">Skupaj: 0,00 EUR</span>
+                    </div>
+                </div>
+
+                <div class="sdp-club-cart-message" hidden></div>
+                <div class="sdp-club-cart-empty">Košarica je trenutno prazna.</div>
+                <div class="sdp-club-cart-items"></div>
+
+                <form method="post" class="sdp-form-grid sdp-club-cart-submit">
+                    <?php wp_nonce_field('sdp_club_order_create_nonce'); ?>
+                    <input type="hidden" name="sdp_action" value="club_order_create" />
+                    <input type="hidden" name="sdp_return_url" value="<?php echo esc_url($return_url); ?>" />
+                    <input type="hidden" name="club_cart_payload" value="" />
+
+                    <label>Za koga je naročilo? *
+                        <input name="club_child_name" type="text" placeholder="Ime in priimek otroka / atleta" required>
+                    </label>
+
+                    <label>Skupna opomba
+                        <textarea name="club_note" rows="3" placeholder="Dodatne informacije za naročilo"></textarea>
+                    </label>
+
+                    <button type="submit" class="sdp-btn-primary" disabled>Oddaj naročilo</button>
+                </form>
+            </div>
+
+            <div class="sdp-club-grid">
+                <?php foreach ($products as $product) : ?>
+                    <?php
+                    $price = $this->get_club_product_price($product->ID);
+                    $sizes = $this->get_club_product_sizes($product->ID);
+                    $price_label = $price !== '' ? $this->format_price($price) : '';
+                    ?>
+                    <article class="sdp-club-card" data-product-id="<?php echo esc_attr((string) $product->ID); ?>" data-product-name="<?php echo esc_attr($product->post_title); ?>" data-product-price="<?php echo esc_attr($price); ?>" data-product-price-label="<?php echo esc_attr($price_label); ?>">
+                        <?php if (has_post_thumbnail($product->ID)) : ?>
+                            <div class="sdp-club-thumb-wrap"><?php echo get_the_post_thumbnail($product->ID, 'medium'); ?></div>
+                        <?php else : ?>
+                            <div class="sdp-club-thumb-placeholder">ŠD Pohorje</div>
+                        <?php endif; ?>
+                        <div class="sdp-club-card-body">
+                            <h4><?php echo esc_html($product->post_title); ?></h4>
+                            <?php if ($price !== '') : ?>
+                                <p class="sdp-club-price"><?php echo esc_html($price_label); ?></p>
+                            <?php endif; ?>
+                            <div class="sdp-club-description"><?php echo wpautop(wp_kses_post($product->post_content)); ?></div>
+
+                            <div class="sdp-form-grid sdp-club-order-form">
+                                <label>Količina
+                                    <input name="club_quantity" type="number" min="1" step="1" value="1" required>
+                                </label>
+
+                                <?php if (!empty($sizes)) : ?>
+                                    <label>Velikost
+                                        <select name="club_size" required>
+                                            <option value="">Izberi velikost</option>
+                                            <?php foreach ($sizes as $size_option) : ?>
+                                                <option value="<?php echo esc_attr($size_option); ?>"><?php echo esc_html($size_option); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </label>
+                                <?php else : ?>
+                                    <label>Velikost
+                                        <input name="club_size" type="text" placeholder="Po želji">
+                                    </label>
+                                <?php endif; ?>
+
+                                <button type="button" class="sdp-btn-secondary sdp-club-add-to-cart">Dodaj v košarico</button>
+                            </div>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php
+
+        return ob_get_clean();
+    }
+
+    private function render_club_orders_inner()
+    {
+        if (!$this->can_place_club_orders()) {
+            return '<p>Pregled naročil je na voljo prijavljenim staršem in atletom.</p>';
+        }
+
+        $orders = get_posts(
+            array(
+                'post_type' => self::CLUB_ORDER_POST_TYPE,
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'author' => get_current_user_id(),
+                'orderby' => 'date',
+                'order' => 'DESC',
+            )
+        );
+
+        if (empty($orders)) {
+            return '<p>Trenutno še nimate oddanih naročil.</p>';
+        }
+
+        ob_start();
+        ?>
+        <div class="sdp-club-order-list">
+            <?php foreach ($orders as $order) : ?>
+                <?php
+                $items = $this->get_club_order_items($order->ID);
+                $child_name = (string) get_post_meta($order->ID, self::META_CLUB_ORDER_CHILD_NAME, true);
+                $status = (string) get_post_meta($order->ID, self::META_CLUB_ORDER_STATUS, true);
+                $total = $this->get_club_order_total_from_items($items);
+                ?>
+                <article class="sdp-club-order-card">
+                    <div class="sdp-club-order-head">
+                        <strong><?php echo esc_html($this->get_club_order_items_summary_from_items($items)); ?></strong>
+                        <span class="sdp-club-order-status"><?php echo esc_html($this->get_club_order_status_label($status)); ?></span>
+                    </div>
+                    <p><strong>Za:</strong> <?php echo esc_html($child_name !== '' ? $child_name : '-'); ?></p>
+                    <p><strong>Datum:</strong> <?php echo esc_html(get_the_date('d. m. Y H:i', $order)); ?></p>
+                    <p><strong>Št. kosov:</strong> <?php echo esc_html((string) $this->get_club_order_total_quantity_from_items($items)); ?></p>
+                    <div class="sdp-club-order-items"><?php echo $this->build_club_order_items_html($items); ?></div>
+                    <p><strong>Skupaj:</strong> <?php echo esc_html($this->format_price($total)); ?></p>
+                </article>
+            <?php endforeach; ?>
+        </div>
+        <?php
+
         return ob_get_clean();
     }
 
@@ -2318,6 +3193,134 @@ class SDP_Accounts_Plugin
         wp_reset_postdata();
 
         return ob_get_clean();
+    }
+
+    private function send_club_order_confirmation($order_id)
+    {
+        $order = get_post($order_id);
+
+        if (!$order || $order->post_type !== self::CLUB_ORDER_POST_TYPE) {
+            return;
+        }
+
+        $customer_email = (string) get_post_meta($order_id, self::META_CLUB_ORDER_CUSTOMER_EMAIL, true);
+
+        if (!is_email($customer_email)) {
+            return;
+        }
+
+        $customer_name = (string) get_post_meta($order_id, self::META_CLUB_ORDER_CUSTOMER_NAME, true);
+        $child_name = (string) get_post_meta($order_id, self::META_CLUB_ORDER_CHILD_NAME, true);
+        $items = $this->get_club_order_items($order_id);
+        $total = $this->get_club_order_total_from_items($items);
+        $from_name = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+        $from_email = sanitize_email(get_option('admin_email'));
+
+        if (!$from_email || !is_email($from_email)) {
+            $from_email = 'noreply@' . wp_parse_url(home_url('/'), PHP_URL_HOST);
+        }
+
+        $subject = 'ŠD Pohorje: Potrditev naročila klubske opreme';
+        $html_message = $this->build_branded_email_html(
+            'Potrditev naročila',
+            '<p style="margin:0 0 14px;font-size:16px;line-height:1.55;">Pozdravljeni, ' . esc_html($customer_name) . '!</p>' .
+            '<p style="margin:0 0 14px;font-size:16px;line-height:1.55;">Vaše naročilo klubske opreme je bilo uspešno oddano.</p>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><strong>Za:</strong> ' . esc_html($child_name !== '' ? $child_name : '-') . '</p>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><strong>Izdelki:</strong></p>' .
+            $this->build_club_order_items_html($items) .
+            '<p style="margin:12px 0 8px;font-size:15px;line-height:1.55;"><strong>Skupaj:</strong> ' . esc_html($this->format_price($total)) . '</p>' .
+            '<p style="margin:16px 0 0;font-size:15px;line-height:1.55;">O nadaljnjih korakih vas bomo obvestili po e-pošti.</p>'
+        );
+
+        $text_message = "Pozdravljeni, {$customer_name}!\n\n" .
+            "Vaše naročilo klubske opreme je bilo uspešno oddano.\n\n" .
+            'Za: ' . ($child_name !== '' ? $child_name : '-') . "\n\n" .
+            "Izdelki:\n" . $this->build_club_order_items_text($items) . "\n\n" .
+            'Skupaj: ' . $this->format_price($total) . "\n\n" .
+            "Lep pozdrav,\n" .
+            "ekipa ŠD Pohorje";
+
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $from_name . ' <' . $from_email . '>',
+        );
+
+        $sent = wp_mail($customer_email, $subject, $html_message, $headers);
+
+        if (!$sent) {
+            $sent = wp_mail($customer_email, $subject, $text_message, array('From: ' . $from_name . ' <' . $from_email . '>'));
+        }
+
+        if (!$sent) {
+            error_log('SDP Accounts: failed to send club order confirmation to ' . $customer_email);
+        }
+    }
+
+    private function send_admin_club_order_notice($order_id)
+    {
+        $order = get_post($order_id);
+        $admin_email = $this->get_admin_notification_email();
+
+        if (!$order || $order->post_type !== self::CLUB_ORDER_POST_TYPE || !$admin_email || !is_email($admin_email)) {
+            return;
+        }
+
+        $customer_name = (string) get_post_meta($order_id, self::META_CLUB_ORDER_CUSTOMER_NAME, true);
+        $customer_email = (string) get_post_meta($order_id, self::META_CLUB_ORDER_CUSTOMER_EMAIL, true);
+        $customer_phone = (string) get_post_meta($order_id, self::META_CLUB_ORDER_CUSTOMER_PHONE, true);
+        $child_name = (string) get_post_meta($order_id, self::META_CLUB_ORDER_CHILD_NAME, true);
+        $items = $this->get_club_order_items($order_id);
+        $note = (string) get_post_meta($order_id, self::META_CLUB_ORDER_NOTE, true);
+        $total = $this->get_club_order_total_from_items($items);
+        $edit_url = admin_url('post.php?post=' . (int) $order_id . '&action=edit');
+        $from_name = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+        $from_email = sanitize_email(get_option('admin_email'));
+
+        if (!$from_email || !is_email($from_email)) {
+            $from_email = 'noreply@' . wp_parse_url(home_url('/'), PHP_URL_HOST);
+        }
+
+        $subject = 'Novo naročilo klubske opreme: ' . $this->get_club_order_items_summary_from_items($items);
+        $html_message = $this->build_branded_email_html(
+            'Novo naročilo klubske opreme',
+            '<p style="margin:0 0 14px;font-size:16px;line-height:1.55;">Prejeli ste novo naročilo klubske opreme.</p>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><strong>Order ID:</strong> ' . esc_html((string) $order_id) . '</p>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><strong>Kupec:</strong> ' . esc_html($customer_name) . '</p>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><strong>Za:</strong> ' . esc_html($child_name !== '' ? $child_name : '-') . '</p>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><strong>E-pošta:</strong> <a href="mailto:' . esc_attr($customer_email) . '" style="color:#356f8c;">' . esc_html($customer_email) . '</a></p>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><strong>Telefon:</strong> ' . esc_html($customer_phone !== '' ? $customer_phone : '-') . '</p>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><strong>Izdelki:</strong></p>' .
+            $this->build_club_order_items_html($items) .
+            '<p style="margin:12px 0 8px;font-size:15px;line-height:1.55;"><strong>Skupaj:</strong> ' . esc_html($this->format_price($total)) . '</p>' .
+            '<p style="margin:18px 0 8px;font-size:15px;line-height:1.55;"><strong>Opomba kupca:</strong></p>' .
+            '<div style="margin:0 0 18px;padding:14px 16px;border-left:4px solid #c69a47;background:#f6fbff;border-radius:10px;color:#183748;white-space:pre-line;">' . esc_html($note !== '' ? $note : '-') . '</div>' .
+            '<p style="margin:0 0 8px;font-size:15px;line-height:1.55;"><a href="' . esc_url($edit_url) . '" style="display:inline-block;background:#356f8c;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:999px;">Odpri naročilo v administraciji</a></p>'
+        );
+        $text_message = "Novo naročilo klubske opreme\n\n" .
+            "Order ID: {$order_id}\n" .
+            "Customer: {$customer_name}\n" .
+            'For: ' . ($child_name !== '' ? $child_name : '-') . "\n" .
+            "Email: {$customer_email}\n" .
+            'Phone: ' . ($customer_phone !== '' ? $customer_phone : '-') . "\n" .
+            "Items:\n" . $this->build_club_order_items_text($items) . "\n" .
+            'Total: ' . $this->format_price($total) . "\n" .
+            'Customer note: ' . ($note !== '' ? $note : '-') . "\n\n" .
+            "Open order: {$edit_url}\n";
+
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $from_name . ' <' . $from_email . '>',
+        );
+
+        $sent = wp_mail($admin_email, $subject, $html_message, $headers);
+
+        if (!$sent) {
+            $sent = wp_mail($admin_email, $subject, $text_message, array('From: ' . $from_name . ' <' . $from_email . '>'));
+        }
+
+        if (!$sent) {
+            error_log('SDP Accounts: failed to send admin club order notice to ' . $admin_email);
+        }
     }
 
     private function send_admin_registration_notice($user_id, $role)
