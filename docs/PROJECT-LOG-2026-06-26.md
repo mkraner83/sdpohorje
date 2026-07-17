@@ -308,6 +308,72 @@ This section records the club-shop release and restore-point work completed on 2
 - docs/PROJECT-LOG-2026-06-26.md
 - docs/RELEASE-NOTES-2026-07-13-v0.1.33.md
 - docs/RESTORE-POINT-2026-07-13-v0.1.33.md
+
+---
+
+## Update Log (2026-07-17)
+
+This section records dashboard summary UX improvements and the new athlete training-document module completed on 2026-07-17.
+
+### Dashboard Overview Enhancements
+
+- Added icon-based visual cards on `Pregled` for:
+  - Uredi profil
+  - Prodaja rabljenih predmetov
+  - Klubska oprema
+- Added live marketplace status summary for logged-in user:
+  - total listings
+  - active listings
+  - sold listings
+- Added live latest-order summary for club shop:
+  - status label
+  - item summary
+  - quantity snapshot
+
+### Athlete Training Documents Module
+
+- Added new athlete-only dashboard tab:
+  - Trening načrti
+- Added athlete-facing training-document list with:
+  - title
+  - short description
+  - publish date
+  - file open/download link
+
+### SD Portal Admin Additions
+
+- Added new admin post type:
+  - Training Plans
+- Added training-document admin meta box with:
+  - athlete selector
+  - document URL field
+  - Media Library file picker button
+  - short description field
+- Added admin table columns for assigned athlete and file link.
+
+### Styling and Asset Updates
+
+- Added dashboard card icon and status-badge styles.
+- Added training-document card styles for athlete dashboard panel.
+- Added new admin-side JS helper for Media Library file selection.
+
+### Version Progress (2026-07-17 Session)
+
+- 0.1.34 dashboard summary cards and athlete training-documents release
+
+### Restore Point Prepared
+
+- Added release notes for v0.1.34.
+- Added a restore-point document for v0.1.34.
+- Archived docs/restore-points/sd-pohorje-accounts-v0.1.34-2026-07-17.zip.
+- Captured source commit ec775c4 and SHA-256 checksum for reproducibility.
+
+### Documentation Updated Alongside This Session
+
+- README.md
+- docs/PROJECT-LOG-2026-06-26.md
+- docs/RELEASE-NOTES-2026-07-17-v0.1.34.md
+- docs/RESTORE-POINT-2026-07-17-v0.1.34.md
 *** Add File: /Users/matjazkraner/sd-pohorje-wordpress-project/docs/RELEASE-NOTES-2026-07-13-v0.1.33.md
 # Release Notes - 2026-07-13 - v0.1.33
 

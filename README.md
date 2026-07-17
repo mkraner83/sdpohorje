@@ -4,7 +4,7 @@ WordPress plugin for ŠD Pohorje account flows, user dashboard, and SD Portal ad
 
 ## Current Version
 
-- Plugin version: 0.1.33
+- Plugin version: 0.1.34
 - Plugin slug: sd-pohorje-accounts
 
 ## Frontend Shortcodes
@@ -36,7 +36,16 @@ Use these shortcodes on dedicated WordPress pages.
   - Moja naročila
   - Moji oglasi
   - Dodaj oglas
-- Dashboard overview includes a friendly intro plus guidance for profile editing and used-item selling.
+- Dashboard overview includes icon-based quick sections for:
+  - Uredi profil
+  - Prodaja rabljenih predmetov
+  - Klubska oprema
+- Dashboard overview includes live user summaries:
+  - Marketplace listing count (total, active, sold)
+  - Latest club-order status and short order summary
+- Athletes have an additional dashboard tab:
+  - Trening načrti
+- Athlete training-documents panel shows assigned PDFs/files with short descriptions and publish dates.
 - Club shop lets logged-in Parents/Athletes browse official club products, add multiple items to cart, and submit one no-payment order.
 - Club-shop orders support quantity, optional size selection, a required child/athlete recipient field, and customer notes.
 - Logged-in users can review their submitted club-shop orders and current order status in the portal.
@@ -70,6 +79,10 @@ Submenus:
 - Club Shop Orders
   - Native admin order queue for submitted customer orders.
   - Includes customer details, child/athlete recipient, ordered product snapshots, itemized quantities/sizes, status, and admin note.
+- Training Plans
+  - Admin upload/assignment for athlete training documents (PDF or similar files).
+  - Each training document supports title, athlete assignment, file URL/media file, and short description.
+  - Athletes see assigned files in the dashboard Trening načrti tab.
 - Settings
   - Admin Email option for notification destination.
   - Shortcode reference for current frontend pages.
@@ -90,7 +103,7 @@ Submenus:
 
 ## Restore Guidance
 
-- Latest restore-point documentation is in docs/RESTORE-POINT-2026-07-13-v0.1.33.md.
+- Latest restore-point documentation is in docs/RESTORE-POINT-2026-07-17-v0.1.34.md.
 - Versioned restore ZIP snapshots are stored in docs/restore-points/.
 
 ## Notes
