@@ -36,10 +36,14 @@ class SDP_Accounts_Plugin
     const META_CLUB_ORDER_CUSTOMER_EMAIL = 'sdp_club_order_customer_email';
     const META_CLUB_ORDER_CUSTOMER_PHONE = 'sdp_club_order_customer_phone';
     const META_CLUB_ORDER_ADMIN_NOTE = 'sdp_club_order_admin_note';
+    const META_TRAINING_DOC_ATHLETE_ID = 'sdp_training_doc_athlete_id';
+    const META_TRAINING_DOC_FILE_URL = 'sdp_training_doc_file_url';
+    const META_TRAINING_DOC_DESCRIPTION = 'sdp_training_doc_description';
     const OPTION_ADMIN_NOTIFICATION_EMAIL = 'sdp_admin_notification_email';
     const MARKETPLACE_POST_TYPE = 'sdp_market_item';
     const CLUB_PRODUCT_POST_TYPE = 'sdp_club_product';
     const CLUB_ORDER_POST_TYPE = 'sdp_club_order';
+    const TRAINING_DOC_POST_TYPE = 'sdp_training_doc';
 
     private static $instance = null;
 
@@ -57,6 +61,7 @@ class SDP_Accounts_Plugin
         self::register_roles();
         self::register_marketplace_post_type();
         self::register_club_shop_post_types();
+        self::register_training_doc_post_type();
         flush_rewrite_rules();
     }
 
@@ -157,6 +162,28 @@ class SDP_Accounts_Plugin
         );
     }
 
+    private static function register_training_doc_post_type()
+    {
+        register_post_type(
+            self::TRAINING_DOC_POST_TYPE,
+            array(
+                'labels' => array(
+                    'name' => 'Training Plans',
+                    'singular_name' => 'Training Document',
+                    'menu_name' => 'Training Plans',
+                    'add_new_item' => 'Add New Training Document',
+                    'edit_item' => 'Edit Training Document',
+                ),
+                'public' => false,
+                'show_ui' => true,
+                'show_in_menu' => 'sdp-portal-users',
+                'supports' => array('title'),
+                'capability_type' => 'post',
+                'map_meta_cap' => true,
+            )
+        );
+    }
+
     private function __construct()
     {
         add_action('init', array($this, 'register_roles_runtime'));
@@ -181,14 +208,18 @@ class SDP_Accounts_Plugin
 
         add_action('admin_menu', array($this, 'register_admin_pages'));
         add_action('admin_post_sdp_portal_save_settings', array($this, 'handle_admin_settings_save'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         add_action('pre_get_users', array($this, 'filter_users_admin_lists'));
         add_action('add_meta_boxes', array($this, 'register_club_shop_meta_boxes'));
         add_action('save_post_' . self::CLUB_PRODUCT_POST_TYPE, array($this, 'save_club_product_meta'));
         add_action('save_post_' . self::CLUB_ORDER_POST_TYPE, array($this, 'save_club_order_meta'));
+        add_action('save_post_' . self::TRAINING_DOC_POST_TYPE, array($this, 'save_training_doc_meta'));
         add_filter('manage_' . self::CLUB_PRODUCT_POST_TYPE . '_posts_columns', array($this, 'set_club_product_columns'));
         add_action('manage_' . self::CLUB_PRODUCT_POST_TYPE . '_posts_custom_column', array($this, 'render_club_product_column'), 10, 2);
         add_filter('manage_' . self::CLUB_ORDER_POST_TYPE . '_posts_columns', array($this, 'set_club_order_columns'));
         add_action('manage_' . self::CLUB_ORDER_POST_TYPE . '_posts_custom_column', array($this, 'render_club_order_column'), 10, 2);
+        add_filter('manage_' . self::TRAINING_DOC_POST_TYPE . '_posts_columns', array($this, 'set_training_doc_columns'));
+        add_action('manage_' . self::TRAINING_DOC_POST_TYPE . '_posts_custom_column', array($this, 'render_training_doc_column'), 10, 2);
     }
 
     public function register_roles_runtime()
@@ -196,6 +227,7 @@ class SDP_Accounts_Plugin
         self::register_roles();
         self::register_marketplace_post_type();
         self::register_club_shop_post_types();
+        self::register_training_doc_post_type();
     }
 
     private function is_portal_user($user = null)
@@ -249,6 +281,8 @@ class SDP_Accounts_Plugin
 
     public function enqueue_assets()
     {
+        wp_enqueue_style('dashicons');
+
         wp_enqueue_style(
             'sdp-accounts-style',
             SDP_ACCOUNTS_URL . 'assets/css/sdp-accounts.css',
@@ -260,6 +294,28 @@ class SDP_Accounts_Plugin
             'sdp-accounts-script',
             SDP_ACCOUNTS_URL . 'assets/js/sdp-accounts.js',
             array(),
+            SDP_ACCOUNTS_VERSION,
+            true
+        );
+    }
+
+    public function enqueue_admin_assets($hook_suffix)
+    {
+        if (!in_array($hook_suffix, array('post.php', 'post-new.php'), true)) {
+            return;
+        }
+
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+
+        if (!$screen || $screen->post_type !== self::TRAINING_DOC_POST_TYPE) {
+            return;
+        }
+
+        wp_enqueue_media();
+        wp_enqueue_script(
+            'sdp-accounts-admin-script',
+            SDP_ACCOUNTS_URL . 'assets/js/sdp-accounts-admin.js',
+            array('jquery'),
             SDP_ACCOUNTS_VERSION,
             true
         );
@@ -358,6 +414,19 @@ class SDP_Accounts_Plugin
         return $this->can_manage_marketplace();
     }
 
+    private function can_view_training_documents($user = null)
+    {
+        if (!$user instanceof WP_User) {
+            $user = wp_get_current_user();
+        }
+
+        if (!$user instanceof WP_User || empty($user->roles)) {
+            return false;
+        }
+
+        return in_array(self::ATHLETE_ROLE, $user->roles, true);
+    }
+
     private function get_club_order_status_labels()
     {
         return array(
@@ -373,6 +442,91 @@ class SDP_Accounts_Plugin
         $labels = $this->get_club_order_status_labels();
 
         return isset($labels[$status]) ? $labels[$status] : $labels['new'];
+    }
+
+    private function get_user_marketplace_summary($user_id)
+    {
+        $item_ids = get_posts(
+            array(
+                'post_type' => self::MARKETPLACE_POST_TYPE,
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'author' => (int) $user_id,
+                'fields' => 'ids',
+            )
+        );
+
+        $summary = array(
+            'total' => count($item_ids),
+            'active' => 0,
+            'sold' => 0,
+        );
+
+        foreach ($item_ids as $item_id) {
+            $state = (string) get_post_meta($item_id, self::META_ITEM_STATE, true);
+
+            if ($state === 'sold') {
+                $summary['sold']++;
+            } else {
+                $summary['active']++;
+            }
+        }
+
+        return $summary;
+    }
+
+    private function get_user_latest_club_order_summary($user_id)
+    {
+        $orders = get_posts(
+            array(
+                'post_type' => self::CLUB_ORDER_POST_TYPE,
+                'post_status' => 'publish',
+                'posts_per_page' => 1,
+                'author' => (int) $user_id,
+                'orderby' => 'date',
+                'order' => 'DESC',
+            )
+        );
+
+        if (empty($orders)) {
+            return array(
+                'has_orders' => false,
+                'status_label' => '',
+                'items_summary' => '',
+                'quantity' => 0,
+            );
+        }
+
+        $latest_order = $orders[0];
+        $items = $this->get_club_order_items($latest_order->ID);
+        $status = (string) get_post_meta($latest_order->ID, self::META_CLUB_ORDER_STATUS, true);
+
+        return array(
+            'has_orders' => true,
+            'status_label' => $this->get_club_order_status_label($status),
+            'items_summary' => $this->get_club_order_items_summary_from_items($items),
+            'quantity' => $this->get_club_order_total_quantity_from_items($items),
+        );
+    }
+
+    private function get_athlete_training_documents($athlete_id)
+    {
+        return get_posts(
+            array(
+                'post_type' => self::TRAINING_DOC_POST_TYPE,
+                'post_status' => 'publish',
+                'posts_per_page' => -1,
+                'orderby' => 'date',
+                'order' => 'DESC',
+                'meta_query' => array(
+                    array(
+                        'key' => self::META_TRAINING_DOC_ATHLETE_ID,
+                        'value' => (string) ((int) $athlete_id),
+                        'compare' => '=',
+                    ),
+                ),
+            )
+        );
     }
 
     private function get_club_product_sizes($post_id)
@@ -1581,6 +1735,15 @@ class SDP_Accounts_Plugin
             'normal',
             'default'
         );
+
+        add_meta_box(
+            'sdp-training-doc-details',
+            'Training Document Details',
+            array($this, 'render_training_doc_meta_box'),
+            self::TRAINING_DOC_POST_TYPE,
+            'normal',
+            'default'
+        );
     }
 
     public function render_club_product_meta_box($post)
@@ -1640,6 +1803,56 @@ class SDP_Accounts_Plugin
         echo '</table>';
     }
 
+    public function render_training_doc_meta_box($post)
+    {
+        wp_nonce_field('sdp_training_doc_meta', 'sdp_training_doc_meta_nonce');
+
+        $athlete_id = (int) get_post_meta($post->ID, self::META_TRAINING_DOC_ATHLETE_ID, true);
+        $file_url = (string) get_post_meta($post->ID, self::META_TRAINING_DOC_FILE_URL, true);
+        $description = (string) get_post_meta($post->ID, self::META_TRAINING_DOC_DESCRIPTION, true);
+        $athletes = get_users(
+            array(
+                'role' => self::ATHLETE_ROLE,
+                'number' => 1000,
+                'orderby' => 'display_name',
+                'order' => 'ASC',
+            )
+        );
+
+        echo '<table class="form-table" role="presentation">';
+        echo '<tr><th scope="row"><label for="sdp_training_doc_athlete_id">Athlete</label></th><td>';
+        echo '<select name="sdp_training_doc_athlete_id" id="sdp_training_doc_athlete_id" required>';
+        echo '<option value="">Select athlete</option>';
+
+        foreach ($athletes as $athlete) {
+            $name = trim((string) get_user_meta($athlete->ID, 'first_name', true) . ' ' . (string) get_user_meta($athlete->ID, 'last_name', true));
+            $name = $name !== '' ? $name : $athlete->display_name;
+            echo '<option value="' . esc_attr((string) $athlete->ID) . '" ' . selected($athlete_id, $athlete->ID, false) . '>' . esc_html($name . ' (' . $athlete->user_email . ')') . '</option>';
+        }
+
+        echo '</select>';
+        echo '<p class="description">Choose which athlete should see this document on the portal dashboard.</p>';
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="sdp_training_doc_file_url">Document file</label></th><td>';
+        echo '<div class="sdp-training-doc-file-field">';
+        echo '<input type="url" name="sdp_training_doc_file_url" id="sdp_training_doc_file_url" class="regular-text sdp-training-doc-file-url" value="' . esc_attr($file_url) . '" placeholder="https://.../training-plan.pdf" required /> ';
+        echo '<button type="button" class="button sdp-training-doc-upload">Select from Media</button>';
+        echo '</div>';
+        echo '<p class="description">PDF is recommended. You can also use DOCX, image, or similar training files.</p>';
+
+        if ($file_url !== '') {
+            echo '<p><a href="' . esc_url($file_url) . '" target="_blank" rel="noopener noreferrer">Open current file</a></p>';
+        }
+
+        echo '</td></tr>';
+
+        echo '<tr><th scope="row"><label for="sdp_training_doc_description">Short description</label></th><td>';
+        echo '<textarea name="sdp_training_doc_description" id="sdp_training_doc_description" rows="4" class="large-text" placeholder="Optional short summary shown to the athlete.">' . esc_textarea($description) . '</textarea>';
+        echo '</td></tr>';
+        echo '</table>';
+    }
+
     public function save_club_product_meta($post_id)
     {
         if (!isset($_POST['sdp_club_product_meta_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['sdp_club_product_meta_nonce'])), 'sdp_club_product_meta')) {
@@ -1693,6 +1906,44 @@ class SDP_Accounts_Plugin
 
         update_post_meta($post_id, self::META_CLUB_ORDER_STATUS, $status);
         update_post_meta($post_id, self::META_CLUB_ORDER_ADMIN_NOTE, $admin_note);
+    }
+
+    public function save_training_doc_meta($post_id)
+    {
+        if (!isset($_POST['sdp_training_doc_meta_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['sdp_training_doc_meta_nonce'])), 'sdp_training_doc_meta')) {
+            return;
+        }
+
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+
+        if (!current_user_can('edit_post', $post_id)) {
+            return;
+        }
+
+        $athlete_id = isset($_POST['sdp_training_doc_athlete_id']) ? (int) $_POST['sdp_training_doc_athlete_id'] : 0;
+        $file_url = isset($_POST['sdp_training_doc_file_url']) ? esc_url_raw(wp_unslash($_POST['sdp_training_doc_file_url'])) : '';
+        $description = isset($_POST['sdp_training_doc_description']) ? sanitize_textarea_field(wp_unslash($_POST['sdp_training_doc_description'])) : '';
+        $athlete = $athlete_id > 0 ? get_user_by('id', $athlete_id) : false;
+
+        if ($athlete instanceof WP_User && in_array(self::ATHLETE_ROLE, $athlete->roles, true)) {
+            update_post_meta($post_id, self::META_TRAINING_DOC_ATHLETE_ID, $athlete_id);
+        } else {
+            delete_post_meta($post_id, self::META_TRAINING_DOC_ATHLETE_ID);
+        }
+
+        if ($file_url !== '') {
+            update_post_meta($post_id, self::META_TRAINING_DOC_FILE_URL, $file_url);
+        } else {
+            delete_post_meta($post_id, self::META_TRAINING_DOC_FILE_URL);
+        }
+
+        if ($description !== '') {
+            update_post_meta($post_id, self::META_TRAINING_DOC_DESCRIPTION, $description);
+        } else {
+            delete_post_meta($post_id, self::META_TRAINING_DOC_DESCRIPTION);
+        }
     }
 
     public function set_club_product_columns($columns)
@@ -1766,6 +2017,43 @@ class SDP_Accounts_Plugin
         if ($column === 'sdp_club_order_status') {
             $status = (string) get_post_meta($post_id, self::META_CLUB_ORDER_STATUS, true);
             echo esc_html($this->get_club_order_status_label($status));
+        }
+    }
+
+    public function set_training_doc_columns($columns)
+    {
+        $columns['sdp_training_doc_athlete'] = 'Athlete';
+        $columns['sdp_training_doc_file'] = 'Document';
+
+        return $columns;
+    }
+
+    public function render_training_doc_column($column, $post_id)
+    {
+        if ($column === 'sdp_training_doc_athlete') {
+            $athlete_id = (int) get_post_meta($post_id, self::META_TRAINING_DOC_ATHLETE_ID, true);
+            $athlete = $athlete_id > 0 ? get_user_by('id', $athlete_id) : false;
+
+            if (!$athlete instanceof WP_User) {
+                echo '-';
+                return;
+            }
+
+            $name = trim((string) get_user_meta($athlete->ID, 'first_name', true) . ' ' . (string) get_user_meta($athlete->ID, 'last_name', true));
+            $name = $name !== '' ? $name : $athlete->display_name;
+            echo esc_html($name);
+            return;
+        }
+
+        if ($column === 'sdp_training_doc_file') {
+            $file_url = (string) get_post_meta($post_id, self::META_TRAINING_DOC_FILE_URL, true);
+
+            if ($file_url === '') {
+                echo '-';
+                return;
+            }
+
+            echo '<a href="' . esc_url($file_url) . '" target="_blank" rel="noopener noreferrer">Open file</a>';
         }
     }
 
@@ -2641,10 +2929,16 @@ class SDP_Accounts_Plugin
             return '';
         }
 
+        $role = reset($user->roles);
         $dashboard_url = get_permalink();
         $tab = isset($_GET['sdp_tab']) ? sanitize_key(wp_unslash($_GET['sdp_tab'])) : 'overview';
+        $allowed_tabs = array('overview', 'profile', 'club-shop', 'club-orders', 'my-listings', 'new-listing');
 
-        if (!in_array($tab, array('overview', 'profile', 'club-shop', 'club-orders', 'my-listings', 'new-listing'), true)) {
+        if ($role === self::ATHLETE_ROLE) {
+            $allowed_tabs[] = 'training-docs';
+        }
+
+        if (!in_array($tab, $allowed_tabs, true)) {
             $tab = 'overview';
         }
 
@@ -2654,8 +2948,8 @@ class SDP_Accounts_Plugin
         $club_orders_url = add_query_arg('sdp_tab', 'club-orders', $dashboard_url);
         $my_listings_url = add_query_arg('sdp_tab', 'my-listings', $dashboard_url);
         $new_listing_url = add_query_arg('sdp_tab', 'new-listing', $dashboard_url);
+        $training_docs_url = add_query_arg('sdp_tab', 'training-docs', $dashboard_url);
 
-        $role = reset($user->roles);
         $first_name = get_user_meta($user_id, 'first_name', true);
         $last_name = get_user_meta($user_id, 'last_name', true);
         $email = $user->user_email;
@@ -2664,6 +2958,10 @@ class SDP_Accounts_Plugin
         $gender = get_user_meta($user_id, 'sdp_gender', true);
         $child_info = get_user_meta($user_id, self::META_CHILD_INFO, true);
         $notes = get_user_meta($user_id, 'sdp_notes', true);
+        $marketplace_summary = $this->get_user_marketplace_summary($user_id);
+        $club_order_summary = $this->get_user_latest_club_order_summary($user_id);
+        $training_docs = $this->can_view_training_documents($user) ? $this->get_athlete_training_documents($user_id) : array();
+        $training_docs_count = count($training_docs);
         ?>
         <div class="sdp-auth-wrap">
             <?php echo wp_kses_post($this->get_notice_html()); ?>
@@ -2681,6 +2979,9 @@ class SDP_Accounts_Plugin
                         <a class="sdp-dashboard-tab <?php echo $tab === 'my-listings' ? 'is-active' : ''; ?>" href="<?php echo esc_url($my_listings_url); ?>">Moji oglasi</a>
                         <a class="sdp-dashboard-tab <?php echo $tab === 'new-listing' ? 'is-active' : ''; ?>" href="<?php echo esc_url($new_listing_url); ?>">Dodaj oglas</a>
                     <?php endif; ?>
+                    <?php if ($this->can_view_training_documents($user)) : ?>
+                        <a class="sdp-dashboard-tab <?php echo $tab === 'training-docs' ? 'is-active' : ''; ?>" href="<?php echo esc_url($training_docs_url); ?>">Trening načrti</a>
+                    <?php endif; ?>
                 </nav>
 
                 <?php if ($tab === 'overview') : ?>
@@ -2688,25 +2989,58 @@ class SDP_Accounts_Plugin
                         <div class="sdp-dashboard-hero">
                             <p class="sdp-dashboard-kicker">Uporabniški portal</p>
                             <h3>Pozdravljeni, <?php echo esc_html($first_name ? $first_name : $user->display_name); ?>.</h3>
-                            <p class="sdp-dashboard-lead">Tukaj lahko urejate svoj profil, spremljate svoje oglase in objavite rabljene športne izdelke za druge člane ŠD Pohorje.</p>
+                            <p class="sdp-dashboard-lead">Tukaj lahko urejate svoj profil, spremljate svoje oglase in oddajate naročila klubske opreme. <?php echo $this->can_view_training_documents($user) ? 'Na voljo imate tudi trening načrte in dokumente trenerjev.' : ''; ?></p>
                         </div>
 
                         <div class="sdp-dashboard-highlights">
                             <div class="sdp-dashboard-highlight">
-                                <strong>Uredi profil</strong>
+                                <div class="sdp-dashboard-highlight-head">
+                                    <span class="dashicons dashicons-id sdp-dashboard-highlight-icon" aria-hidden="true"></span>
+                                    <strong>Uredi profil</strong>
+                                </div>
                                 <span>Posodobite svoje podatke in kontaktne informacije.</span>
+                                <span class="sdp-dashboard-highlight-meta">Uporabniško ime: <?php echo esc_html($user->user_login); ?></span>
                             </div>
                             <div class="sdp-dashboard-highlight">
-                                <strong>Prodaja rabljenih predmetov</strong>
+                                <div class="sdp-dashboard-highlight-head">
+                                    <span class="dashicons dashicons-store sdp-dashboard-highlight-icon" aria-hidden="true"></span>
+                                    <strong>Prodaja rabljenih predmetov</strong>
+                                </div>
                                 <span>Dodajte oglas, uredite svoje oglase in označite prodane izdelke.</span>
+                                <?php if ($marketplace_summary['total'] > 0) : ?>
+                                    <span class="sdp-dashboard-highlight-meta">Objavljenih oglasov: <?php echo esc_html((string) $marketplace_summary['total']); ?> (aktivnih: <?php echo esc_html((string) $marketplace_summary['active']); ?>, prodanih: <?php echo esc_html((string) $marketplace_summary['sold']); ?>).</span>
+                                <?php else : ?>
+                                    <span class="sdp-dashboard-highlight-meta">Trenutno še nimate objavljenih oglasov.</span>
+                                <?php endif; ?>
                             </div>
                             <div class="sdp-dashboard-highlight">
-                                <strong>Klubska oprema</strong>
+                                <div class="sdp-dashboard-highlight-head">
+                                    <span class="dashicons dashicons-cart sdp-dashboard-highlight-icon" aria-hidden="true"></span>
+                                    <strong>Klubska oprema</strong>
+                                </div>
                                 <span>Oddajte naročilo za uradno klubsko opremo in spremljajte svoja naročila.</span>
+                                <?php if ($club_order_summary['has_orders']) : ?>
+                                    <span class="sdp-dashboard-highlight-meta">
+                                        <span class="sdp-dashboard-inline-status">Status: <?php echo esc_html($club_order_summary['status_label']); ?></span>
+                                        Zadnje naročilo: <?php echo esc_html($club_order_summary['items_summary']); ?> (<?php echo esc_html((string) $club_order_summary['quantity']); ?> kosov).
+                                    </span>
+                                <?php else : ?>
+                                    <span class="sdp-dashboard-highlight-meta">Trenutno še nimate oddanih naročil klubske opreme.</span>
+                                <?php endif; ?>
                             </div>
+                            <?php if ($this->can_view_training_documents($user)) : ?>
+                                <div class="sdp-dashboard-highlight">
+                                    <div class="sdp-dashboard-highlight-head">
+                                        <span class="dashicons dashicons-media-document sdp-dashboard-highlight-icon" aria-hidden="true"></span>
+                                        <strong>Trening načrti</strong>
+                                    </div>
+                                    <span>Dostopajte do trening načrtov in dokumentov, ki jih objavi klub.</span>
+                                    <span class="sdp-dashboard-highlight-meta">Na voljo dokumentov: <?php echo esc_html((string) $training_docs_count); ?>.</span>
+                                </div>
+                            <?php endif; ?>
                         </div>
 
-                        <p class="sdp-dashboard-note">Uporabite zavihke zgoraj za hiter dostop do profila, klubske opreme in oglasov.</p>
+                        <p class="sdp-dashboard-note">Uporabite zavihke zgoraj za hiter dostop do profila, klubske opreme, oglasov<?php echo $this->can_view_training_documents($user) ? ' in trening načrtov' : ''; ?>.</p>
                     </div>
                 <?php endif; ?>
 
@@ -2763,6 +3097,14 @@ class SDP_Accounts_Plugin
                     <div class="sdp-dashboard-panel">
                         <h3>Moja naročila</h3>
                         <?php echo $this->render_club_orders_inner(); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($tab === 'training-docs' && $this->can_view_training_documents($user)) : ?>
+                    <div class="sdp-dashboard-panel">
+                        <h3>Trening načrti</h3>
+                        <p>Tu najdete trening načrte in dodatne dokumente, ki so pripravljeni posebej za vaš profil atleta.</p>
+                        <?php echo $this->render_training_documents_inner($user_id); ?>
                     </div>
                 <?php endif; ?>
 
@@ -2825,6 +3167,47 @@ class SDP_Accounts_Plugin
             </div>
         </div>
         <?php
+        return ob_get_clean();
+    }
+
+    private function render_training_documents_inner($athlete_id)
+    {
+        $documents = $this->get_athlete_training_documents($athlete_id);
+
+        if (empty($documents)) {
+            return '<p>Trenutno še ni naloženih trening načrtov ali dokumentov.</p>';
+        }
+
+        ob_start();
+        ?>
+        <div class="sdp-training-doc-list">
+            <?php foreach ($documents as $document) : ?>
+                <?php
+                $file_url = (string) get_post_meta($document->ID, self::META_TRAINING_DOC_FILE_URL, true);
+                $description = (string) get_post_meta($document->ID, self::META_TRAINING_DOC_DESCRIPTION, true);
+                ?>
+                <article class="sdp-training-doc-card">
+                    <div class="sdp-training-doc-head">
+                        <span class="dashicons dashicons-media-document sdp-training-doc-icon" aria-hidden="true"></span>
+                        <strong><?php echo esc_html($document->post_title); ?></strong>
+                    </div>
+
+                    <?php if ($description !== '') : ?>
+                        <p class="sdp-training-doc-desc"><?php echo esc_html($description); ?></p>
+                    <?php endif; ?>
+
+                    <p class="sdp-training-doc-meta">Objavljeno: <?php echo esc_html(get_the_date('d. m. Y', $document)); ?></p>
+
+                    <?php if ($file_url !== '') : ?>
+                        <a class="sdp-btn-secondary" href="<?php echo esc_url($file_url); ?>" target="_blank" rel="noopener noreferrer">Odpri dokument</a>
+                    <?php else : ?>
+                        <p class="sdp-training-doc-meta">Datoteka trenutno ni na voljo.</p>
+                    <?php endif; ?>
+                </article>
+            <?php endforeach; ?>
+        </div>
+        <?php
+
         return ob_get_clean();
     }
 

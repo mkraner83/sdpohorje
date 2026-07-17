@@ -174,9 +174,45 @@
     color: var(--sdp-text);
 }
 
+.sdp-dashboard-highlight-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sdp-dashboard-highlight-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(53, 111, 140, 0.12);
+    color: var(--sdp-blue);
+    font-size: 16px;
+}
+
 .sdp-dashboard-highlight span {
     color: #355a6f;
     line-height: 1.5;
+}
+
+.sdp-dashboard-highlight-meta {
+    margin-top: 2px;
+    font-size: 0.95rem;
+    color: #25495e;
+}
+
+.sdp-dashboard-inline-status {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(53, 111, 140, 0.12);
+    color: #21455b;
+    font-weight: 700;
+    font-size: 0.85rem;
 }
 
 .sdp-dashboard-note {
@@ -743,6 +779,37 @@
     color: var(--sdp-blue-dark);
     font-size: 0.92rem;
     font-weight: 700;
+}
+
+.sdp-training-doc-list {
+    display: grid;
+    gap: 12px;
+}
+
+.sdp-training-doc-card {
+    display: grid;
+    gap: 8px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #f6fbff;
+    border: 1px solid rgba(53, 111, 140, 0.16);
+}
+
+.sdp-training-doc-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--sdp-text);
+}
+
+.sdp-training-doc-icon {
+    color: var(--sdp-blue);
+}
+
+.sdp-training-doc-desc,
+.sdp-training-doc-meta {
+    margin: 0;
+    color: #355a6f;
 }
 
 @media (min-width: 960px) {

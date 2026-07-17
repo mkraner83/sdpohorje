@@ -2,7 +2,7 @@
 /**
  * Plugin Name: SD Pohorje Accounts
  * Description: Role-based account registration and branded auth forms for SD Pohorje.
- * Version: 0.1.33
+ * Version: 0.1.34
  * Author: SD Pohorje
  * Text Domain: sd-pohorje-accounts
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SDP_ACCOUNTS_VERSION', '0.1.33');
+define('SDP_ACCOUNTS_VERSION', '0.1.34');
 define('SDP_ACCOUNTS_FILE', __FILE__);
 define('SDP_ACCOUNTS_DIR', plugin_dir_path(__FILE__));
 define('SDP_ACCOUNTS_URL', plugin_dir_url(__FILE__));
